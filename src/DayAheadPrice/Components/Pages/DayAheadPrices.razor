@@ -1,0 +1,116 @@
+﻿@using DayAheadPrice.Components.Elements
+@using DayAheadPrice.Entities
+@using DayAheadPrice.Extensions
+@using DayAheadPrice.Logic
+@inject PriceContainer _priceContainer
+@page "/"
+@rendermode InteractiveServer
+
+<PageTitle>Day-ahead electricity prices (Finland)</PageTitle>
+
+@{
+    var prices = _priceList?.GetPrices(_margin, _alv);
+    var printValue = prices?.TryGetValue(DateTime.Now.Floor(), out var value) == true ? value : 0d;
+    SetPriceString(printValue);
+    SetTimeString(DateTime.Now.Floor());
+}
+
+<div class="page">
+    <div class="fullwidth histogramheader headertextdisplay">
+        @_timeString
+    </div>
+
+    <div class="fullwidth histogramheader">
+        <div class="margininput">
+            Margin (c/kWh): <InputNumber DisplayName="Margin" @bind-Value=_margin @oninput=@(e => ValueChanged(e)) />
+        </div>
+        <div class="headertextdisplay">
+            @_priceString @($"(curr: {printValue.ToString("0.00")}c/kWh)")
+        </div>
+    </div>
+
+    <div class="fullwidth histogramtimes">
+        @if (prices != null && prices.Any())
+        {
+            <div class="histogrambar" style=@($"width:{(100.0/(prices.Count+1)).ToString("#.###")}%")>@("\u23F2")</div>
+
+            foreach (var price in prices)
+            {
+                <div class="histogrambar" style=@($"width:{(100.0/(prices.Count+1)).ToString("#.###")}%")>@price.Key.Hour</div>
+            }
+        }
+        else
+        {
+            <p>No data to display</p>
+        }
+    </div>
+    @if (prices != null && prices.Any())
+    {
+        var maxPrice = prices.Max(p => p.Value);
+        var ceilPrice = (int)Math.Ceiling(maxPrice / 5) * 5;
+        var gridHeightPercent = 500 / ceilPrice;
+
+        <div class="fullwidth histogramcontent">
+            <HistogramBar BarHeightPercent=100d GridHeightPercent=@gridHeightPercent Count="@prices.Count" Price=0d Time=@DateTime.MinValue />
+
+            @foreach (var price in prices)
+            {
+                var barHeightPercent = 100 * (ceilPrice - price.Value) / ceilPrice;
+                <HistogramBar BarHeightPercent=@barHeightPercent GridHeightPercent=@gridHeightPercent Count="@prices.Count" Price=@price.Value Time=@price.Key PriceCallback=@PriceCallback TimeCallback=@TimeCallback />
+            }
+        </div>
+    }
+    else
+    {
+        <p>No data to display</p>
+    }
+</div>
+
+<div id="blazor-error-ui">
+    An unhandled error has occurred.
+    <a href="" class="reload">Reload</a>
+    <a class="dismiss">🗙</a>
+</div>
+
+@code {
+
+    private PriceList? _priceList = null;
+    private decimal _margin = 0.38m;
+    private decimal _alv = 0.24m;
+
+    private string _timeString = string.Empty;
+    private string _priceString = string.Empty;
+
+    private void PriceCallback(double input)
+    {
+        SetPriceString(input);
+        StateHasChanged();
+    }
+
+    private void TimeCallback(DateTime input)
+    {
+        SetTimeString(input);
+        StateHasChanged();
+    }
+
+    private void SetPriceString(double input)
+    {
+        _priceString = $"{input.ToString("0.00")}c/kWh";
+    }
+
+    private void SetTimeString(DateTime input)
+    {
+        var inputh = input.AddHours(1);
+        _timeString = $"{input.Month.ToString("00")}-{input.Day.ToString("00")} \u23F2{input.Hour.ToString("00")} \u2014 {inputh.Month.ToString("00")}-{inputh.Day.ToString("00")} \u23F2{inputh.Hour.ToString("00")}";
+    }
+
+    private void ValueChanged(ChangeEventArgs e)
+    {
+        StateHasChanged();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _priceList = await _priceContainer.GetPriceListAsync();
+    }
+}
