@@ -1,4 +1,5 @@
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
+ENV TZ="Europe/Helsinki"
 WORKDIR /app
 
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
@@ -10,5 +11,5 @@ RUN dotnet publish "DayAheadPrice.csproj" -c Release -o /app/publish
 FROM base AS final
 WORKDIR /app
 COPY --from=build /app/publish .
-EXPOSE 548
+EXPOSE 8548
 ENTRYPOINT ["dotnet", "DayAheadPrice.dll"]

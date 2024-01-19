@@ -116,21 +116,21 @@ div.histogrambar {
     border-bottom: 1px solid;
     border-color: darkslategrey;
     float: left;
-    font-size: 2vw;
+    font-size: 1.5vw;
     font-weight: bold;
 }
 
 div.dayline {
-    border-right: 2px dotted;
+    border-right: 1px dotted;
     border-color: darkslategrey;
 }
 
 div.currenthour {
-    background: #A747E7;
+    background: #A797E7;
 }
 
 div.currentday {
-    background: #C8C8C8;
+    background: #D8D8D8;
 }
 
 div.histogrambarhover {
@@ -143,20 +143,26 @@ div.fullheight {
 
 div.price {
     background: green;
-    opacity: 0.6;
+    opacity: 0.5;
     border-left: 1px solid;
     border-right: 1px solid;
     border-top: 1px solid;
     border-color: darkslategrey;
     pointer-events: none;
+    touch-action: none;
 }
 
 div.noprice {
-    background: white;
-    opacity: 0.4;
+    background: transparent;
+    text-align: center;
+    opacity: 1.0;
     border-top: 1px solid;
     border-color: darkslategrey;
     pointer-events: none;
+    touch-action: none;
+}
+
+div.gridhost {
     display: flex;
 }
 
@@ -164,17 +170,6 @@ span.gridnumber {
     align-self: flex-end;
     text-align: center;
     color: black;
-    width: 100%;
     font-size: 2vw;
     font-weight: bold;
 }
-
-/*
-div.price :hover {
-    background: #6787B7;
-}
-
-div.noprice :hover {
-    background: #6787B7;
-}
-*/

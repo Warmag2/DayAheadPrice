@@ -51,7 +51,7 @@ public class PriceContainer
     private static PriceList MakePriceListFromResult(Publication_MarketDocument result)
     {
         var priceList = new PriceList();
-        var now = DateTime.Now;
+        var now = DateTime.Now.Floor();
         var nextDayEnd = new DateTime(now.Year, now.Month, now.Day, 0, 0, 0, DateTimeKind.Local).AddDays(2);
 
         foreach (var period in result.TimeSeries.Select(t => t.Period))
@@ -60,7 +60,7 @@ public class PriceContainer
             {
                 var timePosition = period.TimeInterval.StartDateTime.AddHours(point.Position - 1);
 
-                if (timePosition >= DateTime.Now.Floor().AddHours(-12) && timePosition < nextDayEnd)
+                if (timePosition >= now.AddHours(-12) && timePosition < nextDayEnd)
                 {
                     priceList.Prices.Add(timePosition, point.Price / 10);
                 }

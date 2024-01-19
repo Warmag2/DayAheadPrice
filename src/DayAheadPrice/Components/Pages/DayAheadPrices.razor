@@ -11,8 +11,6 @@
 @{
     var prices = _priceList?.GetPrices(_margin, _alv);
     var printValue = prices?.TryGetValue(DateTime.Now.Floor(), out var value) == true ? value : 0d;
-    SetPriceString(printValue);
-    SetTimeString(DateTime.Now.Floor());
 }
 
 <div class="page">
@@ -29,21 +27,6 @@
         </div>
     </div>
 
-    <div class="fullwidth histogramtimes">
-        @if (prices != null && prices.Any())
-        {
-            <div class="histogrambar" style=@($"width:{(100.0/(prices.Count+1)).ToString("#.###")}%")>@("\u23F2")</div>
-
-            foreach (var price in prices)
-            {
-                <div class="histogrambar" style=@($"width:{(100.0/(prices.Count+1)).ToString("#.###")}%")>@price.Key.Hour</div>
-            }
-        }
-        else
-        {
-            <p>No data to display</p>
-        }
-    </div>
     @if (prices != null && prices.Any())
     {
         var maxPrice = prices.Max(p => p.Value);
@@ -51,12 +34,12 @@
         var gridHeightPercent = 500 / ceilPrice;
 
         <div class="fullwidth histogramcontent">
-            <HistogramBar BarHeightPercent=100d GridHeightPercent=@gridHeightPercent Count="@prices.Count" Price=0d Time=@DateTime.MinValue />
+            <HistogramBar BarHeightPercent=100d GridHeightPercent=@gridHeightPercent Count=@(prices.Count+1) Price=0d Time=@DateTime.MinValue />
 
             @foreach (var price in prices)
             {
                 var barHeightPercent = 100 * (ceilPrice - price.Value) / ceilPrice;
-                <HistogramBar BarHeightPercent=@barHeightPercent GridHeightPercent=@gridHeightPercent Count="@prices.Count" Price=@price.Value Time=@price.Key PriceCallback=@PriceCallback TimeCallback=@TimeCallback />
+                <HistogramBar BarHeightPercent=@barHeightPercent GridHeightPercent=@gridHeightPercent Count=@(prices.Count+1) Price=@price.Value Time=@price.Key PriceCallback=@PriceCallback TimeCallback=@TimeCallback />
             }
         </div>
     }
@@ -112,5 +95,10 @@
     protected override async Task OnInitializedAsync()
     {
         _priceList = await _priceContainer.GetPriceListAsync();
+
+        var prices = _priceList?.GetPrices(_margin, _alv);
+        var printValue = prices?.TryGetValue(DateTime.Now.Floor(), out var value) == true ? value : 0d;
+        SetPriceString(printValue);
+        SetTimeString(DateTime.Now.Floor());
     }
 }
