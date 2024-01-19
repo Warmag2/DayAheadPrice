@@ -5,7 +5,7 @@
     var gridLines = (int)(BarHeightPercent > 100.0 ? 100.0 : BarHeightPercent / GridHeightPercent);
 }
 
-<div class="fullheight histogrambar @(_hoverActive ? "histogrambarhover" : string.Empty) @(Time.Hour == 23 ? "dayline" : string.Empty) @(Time.Day == DateTime.Now.Day && Time != DateTime.Now.Floor() ? "currentday" : string.Empty) @(Time == DateTime.Now.Floor() ? "currenthour" : string.Empty)" style=@($"width:{(100.0/(Count+1)).ToString("#.###")}%") @onmouseenter=OnBarHover @onmouseleave=OnBarNoHover @ontouchenter=OnBarTouch @ontouchleave=OnBarNoTouch>
+<div class="fullheight histogrambar @(_hoverActive ? "histogrambarhover" : string.Empty) @(Time.Hour == 23 ? "dayline" : string.Empty) @(Time.Day == DateTime.Now.Day && Time != DateTime.Now.Floor() ? "currentday" : string.Empty) @(Time == DateTime.Now.Floor() ? "currenthour" : string.Empty)" style=@($"width:{(99.5/(Count+1)).ToString("#.###")}%") @onmouseenter=OnBarHover @onmouseleave=OnBarNoHover @ontouchenter=OnBarTouch @ontouchleave=OnBarNoTouch>
     @for (int ii = 0; ii < gridLines; ii++)
     {
         <div class="noprice @(Time == DateTime.MinValue ? "gridhost" : string.Empty)" style=@($"height:{GridHeightPercent.ToString("#.###")}%")>
@@ -16,7 +16,7 @@
 
             @if (Time == DateTime.MinValue)
             {
-                <span class="fullwidth gridnumber">@($"{(gridLines - 1 - ii) * 5}")</span>
+                <div class="fullwidth gridnumber">@($"{(gridLines - 1 - ii) * 5}")</div>
             }
         </div>
     }

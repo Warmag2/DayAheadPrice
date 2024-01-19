@@ -3,6 +3,7 @@
 @using DayAheadPrice.Extensions
 @using DayAheadPrice.Logic
 @inject PriceContainer _priceContainer
+@inject NavigationManager _navigationManager
 @page "/"
 @rendermode InteractiveServer
 
@@ -14,17 +15,12 @@
 }
 
 <div class="page">
-    <div class="fullwidth histogramheader headertextdisplay">
+    <div class="fullwidth histogramheader">
         @_timeString
     </div>
 
     <div class="fullwidth histogramheader">
-        <div class="margininput">
-            Margin (c/kWh): <InputNumber DisplayName="Margin" @bind-Value=_margin @oninput=@(e => ValueChanged(e)) />
-        </div>
-        <div class="headertextdisplay">
-            @_priceString @($"(curr: {printValue.ToString("0.00")}c/kWh)")
-        </div>
+        @_priceString @($"(curr: {printValue.ToString("0.00")}c/kWh)")
     </div>
 
     @if (prices != null && prices.Any())
@@ -33,13 +29,13 @@
         var ceilPrice = (int)Math.Ceiling(maxPrice / 5) * 5;
         var gridHeightPercent = 500 / ceilPrice;
 
-        <div class="fullwidth histogramcontent">
-            <HistogramBar BarHeightPercent=100d GridHeightPercent=@gridHeightPercent Count=@(prices.Count+1) Price=0d Time=@DateTime.MinValue />
+        <div class="histogramcontent">
+            <HistogramBar BarHeightPercent=100d GridHeightPercent=@gridHeightPercent Count=@prices.Count Price=0d Time=@DateTime.MinValue />
 
             @foreach (var price in prices)
             {
                 var barHeightPercent = 100 * (ceilPrice - price.Value) / ceilPrice;
-                <HistogramBar BarHeightPercent=@barHeightPercent GridHeightPercent=@gridHeightPercent Count=@(prices.Count+1) Price=@price.Value Time=@price.Key PriceCallback=@PriceCallback TimeCallback=@TimeCallback />
+                <HistogramBar BarHeightPercent=@barHeightPercent GridHeightPercent=@gridHeightPercent Count=@prices.Count Price=@price.Value Time=@price.Key PriceCallback=@PriceCallback TimeCallback=@TimeCallback />
             }
         </div>
     }
@@ -94,6 +90,16 @@
 
     protected override async Task OnInitializedAsync()
     {
+        if (_navigationManager.TryGetQueryString<decimal>("margin", out var margin))
+        {
+            _margin = margin;
+        }
+
+        if (_navigationManager.TryGetQueryString<decimal>("vat", out var vat))
+        {
+            _alv = vat;
+        }
+
         _priceList = await _priceContainer.GetPriceListAsync();
 
         var prices = _priceList?.GetPrices(_margin, _alv);
