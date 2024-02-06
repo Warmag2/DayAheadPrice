@@ -32,7 +32,7 @@ public static class Program
         }
 
         app.UseStaticFiles();
-        //app.UseAntiforgery();
+        app.UseAntiforgery();
 
         app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 
