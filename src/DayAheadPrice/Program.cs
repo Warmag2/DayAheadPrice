@@ -23,7 +23,7 @@ public static class Program
         // Custom services
         builder.Services.Configure<EndpointOptions>(builder.Configuration.GetSection("EndpointOptions"));
         builder.Services.AddSingleton<PriceContainer>();
-        builder.Services.AddDataProtection().SetApplicationName("DayAheadPrice").PersistKeysToFileSystem(new DirectoryInfo(@"/var/dpkeys/"));
+        builder.Services.AddDataProtection().SetApplicationName("DayAheadPrice").PersistKeysToFileSystem(new DirectoryInfo(@"/app/dpkeys/"));
 
 
         var app = builder.Build();
