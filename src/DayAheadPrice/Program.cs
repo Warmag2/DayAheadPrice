@@ -17,8 +17,7 @@ public static class Program
         var builder = WebApplication.CreateBuilder(args);
 
         // Add services to the container.
-        builder.Services.AddRazorComponents()
-            .AddInteractiveServerComponents();
+        builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 
         // Custom services
         builder.Services.Configure<EndpointOptions>(builder.Configuration.GetSection("EndpointOptions"));
@@ -33,7 +32,7 @@ public static class Program
         }
 
         app.UseStaticFiles();
-        app.UseAntiforgery();
+        //app.UseAntiforgery();
 
         app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 
