@@ -28,7 +28,7 @@ public static class Program
         var app = builder.Build();
 
         // Configure the HTTP request pipeline.
-        /*if (!app.Environment.IsDevelopment())
+        if (!app.Environment.IsDevelopment())
         {
             app.UseExceptionHandler("/Error");
         }
@@ -42,10 +42,10 @@ public static class Program
 
         app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 
-        app.Run();*/
+        app.Run();
 
         // Configure the HTTP request pipeline.
-        if (!app.Environment.IsDevelopment())
+        /*if (!app.Environment.IsDevelopment())
         {
             app.UseExceptionHandler("/Error");
         }
@@ -55,6 +55,6 @@ public static class Program
 
         app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 
-        app.Run();
+        app.Run();*/
     }
 }
