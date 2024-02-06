@@ -25,7 +25,6 @@ public static class Program
         builder.Services.AddSingleton<PriceContainer>();
         builder.Services.AddDataProtection().SetApplicationName("DayAheadPrice").PersistKeysToFileSystem(new DirectoryInfo(@"/app/dpkeys/"));
 
-
         var app = builder.Build();
 
         // Configure the HTTP request pipeline.
@@ -35,10 +34,27 @@ public static class Program
         }
 
         app.UseStaticFiles();
+        app.UseRouting();
         app.UseAntiforgery();
+
+        app.UseHsts();
+        app.UseHttpsRedirection();
 
         app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 
         app.Run();
+
+        // Configure the HTTP request pipeline.
+        /*if (!app.Environment.IsDevelopment())
+        {
+            app.UseExceptionHandler("/Error");
+        }
+
+        app.UseStaticFiles();
+        app.UseAntiforgery();
+
+        app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
+
+        app.Run();*/
     }
 }

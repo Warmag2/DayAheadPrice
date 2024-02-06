@@ -9,7 +9,12 @@ services:
     environment:
       ASPNETCORE_URLS: "http://+:8548"
       ASPNETCORE_ENVIRONMENT: Release
+      Certificates__Default__Path: "./certs/fullchain.pem"
+      Certificates__Default__KeyPath: "./certs/privkey.pem"
       EndpointOptions__ApiKey: "${ENTSOE_APIKEY:?err}"
+    volumes:
+      - "${PATH_CERTS:?err}":/app/certs
+      - "${PATH_DPKEYS:?err}":/app/dpkeys
     ports:
       - 8548:8548
     networks:

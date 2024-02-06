@@ -163,3 +163,7 @@ __pycache__/
 
 # Development config files
 **/appsettings.Development.json
+
+# Possible resource files
+infra/certs/
+infra/dpkeys/
