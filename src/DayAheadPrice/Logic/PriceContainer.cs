@@ -1,4 +1,5 @@
-﻿using System.Xml.Serialization;
+﻿using System.Xml;
+using System.Xml.Serialization;
 using DayAheadPrice.Entities;
 using DayAheadPrice.Extensions;
 using Microsoft.Extensions.Options;
@@ -109,8 +110,14 @@ public class PriceContainer
         var response = await httpClient.SendAsync(request);
 
         var serializer = new XmlSerializer(typeof(Publication_MarketDocument));
+        var xmlReaderSettings = new XmlReaderSettings()
+        {
+            DtdProcessing = DtdProcessing.Parse
+        };
 
-        if (serializer.Deserialize(response.Content.ReadAsStream()) is not Publication_MarketDocument result)
+        var xmlReader = XmlReader.Create(response.Content.ReadAsStream(), xmlReaderSettings);
+
+        if (serializer.Deserialize(xmlReader) is not Publication_MarketDocument result)
         {
             return GetTestPriceList();
         }
