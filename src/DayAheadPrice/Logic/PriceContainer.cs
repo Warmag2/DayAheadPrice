@@ -13,30 +13,42 @@ public class PriceContainer
 {
     private readonly Random _rand = new();
     private readonly EndpointOptions _endpointOptions;
+    private readonly ILogger<PriceContainer> _logger;
     private DateTime _lastUpdate = DateTime.MinValue;
     private PriceList _currentPriceList = new();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PriceContainer"/> class.
     /// </summary>
+    /// <param name="logger">The logging endpoint.</param>
     /// <param name="endpointOptions">The endpoint options.</param>
-    public PriceContainer(IOptions<EndpointOptions> endpointOptions)
+    public PriceContainer(ILogger<PriceContainer> logger, IOptions<EndpointOptions> endpointOptions)
     {
         _endpointOptions = endpointOptions.Value;
+        _logger = logger;
     }
 
     /// <summary>
     /// Gets a price list.
     /// </summary>
     /// <returns>Current price list.</returns>
-    public async Task<PriceList> GetPriceListAsync()
+    public async Task<PriceList?> GetPriceListAsync()
     {
         if (DateTime.Now.Floor() > _lastUpdate)
         {
-            _lastUpdate = DateTime.Now.Floor();
-            _currentPriceList = await MakePriceRequestAsync();
+            try
+            {
+                _currentPriceList = await MakePriceRequestAsync();
+                _lastUpdate = DateTime.Now.Floor();
 
-            return _currentPriceList;
+                return _currentPriceList;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unable to fetch price information.");
+
+                return null;
+            }
         }
         else
         {

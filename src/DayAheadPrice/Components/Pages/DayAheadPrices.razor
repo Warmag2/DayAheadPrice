@@ -41,7 +41,11 @@
     }
     else
     {
-        <p>No data to display</p>
+        <p>
+            No data to display. This might be due to a fetch error.
+            <br />
+            Try refreshing.
+        </p>
     }
 </div>
 
@@ -52,7 +56,6 @@
 </div>
 
 @code {
-
     private PriceList? _priceList = null;
     private decimal _margin = 0.38m;
     private decimal _alv = 0.24m;
@@ -102,9 +105,12 @@
 
         _priceList = await _priceContainer.GetPriceListAsync();
 
-        var prices = _priceList?.GetPrices(_margin, _alv);
-        var printValue = prices?.TryGetValue(DateTime.Now.Floor(), out var value) == true ? value : 0d;
-        SetPriceString(printValue);
-        SetTimeString(DateTime.Now.Floor());
+        if (_priceList != null)
+        {
+            var prices = _priceList?.GetPrices(_margin, _alv);
+            var printValue = prices?.TryGetValue(DateTime.Now.Floor(), out var value) == true ? value : 0d;
+            SetPriceString(printValue);
+            SetTimeString(DateTime.Now.Floor());
+        }
     }
 }
