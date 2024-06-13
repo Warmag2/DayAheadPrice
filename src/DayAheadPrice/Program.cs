@@ -47,7 +47,7 @@ public static class Program
         }
 
         app.UseStaticFiles();
-        app.UseAntiforgery();
+        app.UseRouting();
 
         app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 
