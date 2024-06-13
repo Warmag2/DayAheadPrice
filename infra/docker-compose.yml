@@ -12,7 +12,7 @@ services:
     volumes:
       - ./dpkeys:/app/dpkeys
     ports:
-      - 8548:8548
+      - 8000:80
     networks:
       - dayaheadpricenet
     restart: on-failure
