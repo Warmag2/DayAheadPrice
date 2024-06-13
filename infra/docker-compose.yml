@@ -7,13 +7,9 @@ services:
     hostname: dayaheadprice
     image: dayaheadprice:latest
     environment:
-      #ASPNETCORE_URLS: "https://*:8548"
       ASPNETCORE_ENVIRONMENT: Release
-      Kestrel__Certificates__Default__Path: "./certs/fullchain.pem"
-      Kestrel__Certificates__Default__KeyPath: "./certs/privkey.pem"
       EndpointOptions__ApiKey: "${ENTSOE_APIKEY:?err}"
     volumes:
-      - ./certs:/app/certs:ro
       - ./dpkeys:/app/dpkeys
     ports:
       - 8548:8548

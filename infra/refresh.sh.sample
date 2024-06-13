@@ -1,9 +1,5 @@
 #!/bin/sh
 docker build --tag dayaheadprice -f ../src/DayAheadPrice/Dockerfile ..
 
-# Copy your certs inside the mount points here
-cp -L /path/to/fullchain.pem ./certs/fullchain.pem
-cp -L /path/to/privkey.pem ./certs/privkey.pem
-
 docker-compose down
 docker-compose up -d
