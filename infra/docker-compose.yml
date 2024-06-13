@@ -13,7 +13,6 @@ services:
       - ./dpkeys:/app/dpkeys
     ports:
       - 8548:8548
-      - 5222:8548
     networks:
       - dayaheadpricenet
     restart: on-failure
