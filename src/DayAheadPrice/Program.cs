@@ -42,10 +42,10 @@ public static class Program
         app.UseHttpsRedirection();*/
 
         // Configure the HTTP request pipeline.
-        app.UseForwardedHeaders(new ForwardedHeadersOptions
-        {
-            ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
-        });
+        //app.UseForwardedHeaders(new ForwardedHeadersOptions
+        //{
+            //ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+        //});
 
         if (!app.Environment.IsDevelopment())
         {
