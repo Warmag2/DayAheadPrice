@@ -1,6 +1,7 @@
 using DayAheadPrice.Components;
 using DayAheadPrice.Logic;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 
 namespace DayAheadPrice;
 
@@ -41,6 +42,11 @@ public static class Program
         app.UseHttpsRedirection();*/
 
         // Configure the HTTP request pipeline.
+        app.UseForwardedHeaders(new ForwardedHeadersOptions
+        {
+            ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+        });
+
         if (!app.Environment.IsDevelopment())
         {
             app.UseExceptionHandler("/Error");
