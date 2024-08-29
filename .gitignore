@@ -163,8 +163,6 @@ __pycache__/
 
 # Development config files
 **/appsettings.Development.json
-infra/refresh.sh
 
 # Possible resource files
-infra/certs/
 infra/dpkeys/

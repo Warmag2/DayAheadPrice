@@ -12,5 +12,4 @@ RUN dotnet publish "DayAheadPrice.csproj" -c Release -o /app/publish
 FROM base AS final
 WORKDIR /app
 COPY --from=build /app/publish .
-EXPOSE 80
 ENTRYPOINT ["dotnet", "DayAheadPrice.dll"]
