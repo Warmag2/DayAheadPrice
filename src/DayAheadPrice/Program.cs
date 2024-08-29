@@ -29,23 +29,10 @@ public static class Program
         var app = builder.Build();
 
         // Configure the HTTP request pipeline.
-        /*if (!app.Environment.IsDevelopment())
+        app.UseForwardedHeaders(new ForwardedHeadersOptions
         {
-            app.UseExceptionHandler("/Error");
-        }
-
-        app.UseStaticFiles();
-        app.UseRouting();
-        app.UseAntiforgery();
-
-        app.UseHsts();
-        app.UseHttpsRedirection();*/
-
-        // Configure the HTTP request pipeline.
-        //app.UseForwardedHeaders(new ForwardedHeadersOptions
-        //{
-            //ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
-        //});
+            ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+        });
 
         if (!app.Environment.IsDevelopment())
         {
