@@ -3,8 +3,9 @@
 @using DayAheadPrice.Extensions
 @using DayAheadPrice.Logic
 @using DayAheadPrice.Options
+@using Microsoft.Extensions.Options
 @inject PriceContainer _priceContainer
-@inject PricingOptions _pricingOptions
+@inject IOptions<PricingOptions> _pricingOptions
 @inject NavigationManager _navigationManager
 @page "/"
 @rendermode InteractiveServer
@@ -101,7 +102,7 @@
         }
         else
         {
-            _margin = _pricingOptions.Margin;
+            _margin = _pricingOptions.Value.Margin;
         }
 
         if (_navigationManager.TryGetQueryString<decimal>("vat", out var vat))
@@ -110,7 +111,7 @@
         }
         else
         {
-            _vat = _pricingOptions.Vat;
+            _vat = _pricingOptions.Value.Vat;
         }
 
         _priceList = await _priceContainer.GetPriceListAsync();
