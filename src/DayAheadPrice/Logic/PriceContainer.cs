@@ -2,6 +2,7 @@
 using System.Xml.Serialization;
 using DayAheadPrice.Entities;
 using DayAheadPrice.Extensions;
+using DayAheadPrice.Options;
 using Microsoft.Extensions.Options;
 
 namespace DayAheadPrice.Logic;

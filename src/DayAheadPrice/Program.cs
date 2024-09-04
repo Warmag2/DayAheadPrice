@@ -1,5 +1,6 @@
 using DayAheadPrice.Components;
 using DayAheadPrice.Logic;
+using DayAheadPrice.Options;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 
@@ -23,6 +24,7 @@ public static class Program
 
         // Custom services
         builder.Services.Configure<EndpointOptions>(builder.Configuration.GetSection("EndpointOptions"));
+        builder.Services.Configure<PricingOptions>(builder.Configuration.GetSection("PricingOptions"));
         builder.Services.AddSingleton<PriceContainer>();
         builder.Services.AddDataProtection().SetApplicationName("DayAheadPrice").PersistKeysToFileSystem(new DirectoryInfo(@"/app/dpkeys/"));
 

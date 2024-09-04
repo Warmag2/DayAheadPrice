@@ -2,7 +2,9 @@
 @using DayAheadPrice.Entities
 @using DayAheadPrice.Extensions
 @using DayAheadPrice.Logic
+@using DayAheadPrice.Options
 @inject PriceContainer _priceContainer
+@inject PricingOptions _pricingOptions
 @inject NavigationManager _navigationManager
 @page "/"
 @rendermode InteractiveServer
@@ -10,7 +12,7 @@
 <PageTitle>Day-ahead electricity prices (Finland)</PageTitle>
 
 @{
-    var prices = _priceList?.GetPrices(_margin, _alv);
+    var prices = _priceList?.GetPrices(_margin, _vat);
     var printValue = prices?.TryGetValue(DateTime.Now.Floor(), out var value) == true ? value : 0d;
 }
 
@@ -57,8 +59,8 @@
 
 @code {
     private PriceList? _priceList = null;
-    private decimal _margin = 0.38m;
-    private decimal _alv = 0.24m;
+    private decimal _margin;
+    private decimal _vat;
 
     private string _timeString = string.Empty;
     private string _priceString = string.Empty;
@@ -97,17 +99,25 @@
         {
             _margin = margin;
         }
+        else
+        {
+            _margin = _pricingOptions.Margin;
+        }
 
         if (_navigationManager.TryGetQueryString<decimal>("vat", out var vat))
         {
-            _alv = vat;
+            _vat = vat;
+        }
+        else
+        {
+            _vat = _pricingOptions.Vat;
         }
 
         _priceList = await _priceContainer.GetPriceListAsync();
 
         if (_priceList != null)
         {
-            var prices = _priceList?.GetPrices(_margin, _alv);
+            var prices = _priceList?.GetPrices(_margin, _vat);
             var printValue = prices?.TryGetValue(DateTime.Now.Floor(), out var value) == true ? value : 0d;
             SetPriceString(printValue);
             SetTimeString(DateTime.Now.Floor());

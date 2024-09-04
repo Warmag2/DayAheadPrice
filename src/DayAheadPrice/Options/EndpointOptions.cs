@@ -1,4 +1,4 @@
-﻿namespace DayAheadPrice.Logic;
+﻿namespace DayAheadPrice.Options;
 
 /// <summary>
 /// Options for fetching data from the ensoe API.
