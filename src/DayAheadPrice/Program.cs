@@ -1,6 +1,8 @@
 using DayAheadPrice.Components;
 using DayAheadPrice.Logic;
+using DayAheadPrice.Options;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 
 namespace DayAheadPrice;
 
@@ -22,12 +24,18 @@ public static class Program
 
         // Custom services
         builder.Services.Configure<EndpointOptions>(builder.Configuration.GetSection("EndpointOptions"));
+        builder.Services.Configure<PricingOptions>(builder.Configuration.GetSection("PricingOptions"));
         builder.Services.AddSingleton<PriceContainer>();
         builder.Services.AddDataProtection().SetApplicationName("DayAheadPrice").PersistKeysToFileSystem(new DirectoryInfo(@"/app/dpkeys/"));
 
         var app = builder.Build();
 
         // Configure the HTTP request pipeline.
+        app.UseForwardedHeaders(new ForwardedHeadersOptions
+        {
+            ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+        });
+
         if (!app.Environment.IsDevelopment())
         {
             app.UseExceptionHandler("/Error");
@@ -37,24 +45,8 @@ public static class Program
         app.UseRouting();
         app.UseAntiforgery();
 
-        app.UseHsts();
-        app.UseHttpsRedirection();
-
         app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 
         app.Run();
-
-        // Configure the HTTP request pipeline.
-        /*if (!app.Environment.IsDevelopment())
-        {
-            app.UseExceptionHandler("/Error");
-        }
-
-        app.UseStaticFiles();
-        app.UseAntiforgery();
-
-        app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
-
-        app.Run();*/
     }
 }
