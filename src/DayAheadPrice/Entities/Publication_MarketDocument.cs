@@ -8,8 +8,8 @@ namespace DayAheadPrice.Entities;
 /// </summary>
 [SuppressMessage("Minor Code Smell", "S101:Types should be named in PascalCase", Justification = "This is the name of the incoming document.")]
 [Serializable]
-[XmlType(AnonymousType = true, Namespace = "urn:iec62325.351:tc57wg16:451-3:publicationdocument:7:0")]
-[XmlRoot(Namespace = "urn:iec62325.351:tc57wg16:451-3:publicationdocument:7:0", IsNullable = false)]
+[XmlType(AnonymousType = true, Namespace = "urn:iec62325.351:tc57wg16:451-3:publicationdocument:7:3")]
+[XmlRoot(Namespace = "urn:iec62325.351:tc57wg16:451-3:publicationdocument:7:3", IsNullable = false)]
 public class Publication_MarketDocument
 {
     /// <summary>

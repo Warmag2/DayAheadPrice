@@ -62,22 +62,49 @@ public class PriceContainer
         return $"{dateTime:yyyyMMddHHmm}";
     }
 
-    private static PriceList MakePriceListFromResult(Publication_MarketDocument result)
+    /// <summary>
+    /// Parse the price information from entso-e reported number format.
+    /// Has to be done this way since the API returns something idiotic.
+    /// </summary>
+    /// <param name="price">The number as string.</param>
+    /// <returns>The number as double.</returns>
+    private static double ParsePrice(string price)
+    {
+        return double.Parse(price.Replace(",", string.Empty));
+    }
+
+    private PriceList MakePriceListFromResult(Publication_MarketDocument result)
     {
         var priceList = new PriceList();
         var now = DateTime.Now.Floor();
         var nextDayEnd = new DateTime(now.Year, now.Month, now.Day, 0, 0, 0, DateTimeKind.Local).AddDays(2);
 
-        foreach (var period in result.TimeSeries.Select(t => t.Period))
+        // Only accept EUR
+        foreach (var period in result.TimeSeries.Where(t => t.Currency == "EUR").Select(t => t.Period))
         {
-            foreach (var point in period.Points)
+            // Only read 60min resolution
+            if (period.Resolution == "PT60M")
             {
-                var timePosition = period.TimeInterval.StartDateTime.AddHours(point.Position - 1);
-
-                if (timePosition >= now.AddHours(-12) && timePosition < nextDayEnd)
+                foreach (var point in period.Points)
                 {
-                    priceList.Prices.Add(timePosition, point.Price / 10);
+                    var timePosition = period.TimeInterval.StartDateTime.AddHours(point.Position - 1);
+
+                    if (timePosition >= now.AddHours(-12) && timePosition < nextDayEnd)
+                    {
+                        if (!priceList.Prices.ContainsKey(timePosition))
+                        {
+                            priceList.Prices.Add(timePosition, ParsePrice(point.Price) / 10);
+                        }
+                        else
+                        {
+                            _logger.LogError("Trying to add duplicate value for time {Time}. Existing: {OldPrice}, New: {NewPrice}", timePosition, priceList.Prices[timePosition], ParsePrice(point.Price) / 10);
+                        }
+                    }
                 }
+            }
+            else
+            {
+                _logger.LogInformation("Found data with resolution: {resolution}", period.Resolution);
             }
         }
 
@@ -114,11 +141,16 @@ public class PriceContainer
                     { "periodStart", GetDateTimeFormatString(DateTime.Now.AddDays(-1).Floor()) },
                     { "periodEnd", GetDateTimeFormatString(DateTime.Now.AddDays(1).Floor()) },
                     { "securityToken", _endpointOptions.ApiKey },
-                    { "documentType", "A44" },
+                    { "businessType", _endpointOptions.BusinessType },
+                    { "documentType", _endpointOptions.DocumentType },
+                    { "outBiddingZone_Domain", _endpointOptions.Domain },
+                    { "processType", _endpointOptions.ProcessType },
                     { "In_Domain", _endpointOptions.Domain },
                     { "Out_Domain", _endpointOptions.Domain }
                 })
         };
+
+        //var response = await httpClient.GetAsync($"https://web-api.tp.entsoe.eu/api?securityToken={_endpointOptions.ApiKey}&documentType={_endpointOptions.DocumentType}&outBiddingZone_Domain={_endpointOptions.Domain}&periodStart={GetDateTimeFormatString(DateTime.Now.AddDays(-1).Floor())}&periodEnd={GetDateTimeFormatString(DateTime.Now.AddDays(1).Floor())}");
 
         var response = await httpClient.SendAsync(request);
 

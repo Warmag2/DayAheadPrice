@@ -9,5 +9,5 @@ public class EntsoePoint
     public int Position { get; set; }
 
     [XmlElement(ElementName = "price.amount")]
-    public double Price { get; set; }
+    public string Price { get; set; }
 }

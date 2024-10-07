@@ -10,4 +10,7 @@ public class EntsoePeriod
 
     [XmlElement(ElementName = "Point")]
     public List<EntsoePoint> Points { get; set; } = new();
+
+    [XmlElement(ElementName = "resolution")]
+    public string Resolution { get; set; } = string.Empty;
 }
