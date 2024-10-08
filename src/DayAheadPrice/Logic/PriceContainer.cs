@@ -35,12 +35,16 @@ public class PriceContainer
     /// <returns>Current price list.</returns>
     public async Task<PriceList?> GetPriceListAsync()
     {
-        if (DateTime.Now.Floor() > _lastUpdate)
+        var currentTimeStamp = DateTime.Now.Floor();
+
+        if (currentTimeStamp > _lastUpdate)
         {
             try
             {
+                _logger.LogInformation("Data timestamp ({last}) is older than current hour ({current}). Making new request.", _lastUpdate, currentTimeStamp);
+
                 _currentPriceList = await MakePriceRequestAsync();
-                _lastUpdate = DateTime.Now.Floor();
+                _lastUpdate = currentTimeStamp;
 
                 return _currentPriceList;
             }
@@ -80,9 +84,9 @@ public class PriceContainer
         var nextDayEnd = new DateTime(now.Year, now.Month, now.Day, 0, 0, 0, DateTimeKind.Local).AddDays(2);
 
         // Only accept EUR
-        foreach (var period in result.TimeSeries.Where(t => t.Currency == "EUR").Select(t => t.Period))
+        foreach (var period in result.TimeSeries.Where(t => t.Currency == "EUR").SelectMany(t => t.Periods))
         {
-            // Only read 60min resolution
+            // Only read 60min resolution for now
             if (period.Resolution == "PT60M")
             {
                 foreach (var point in period.Points)
@@ -101,10 +105,6 @@ public class PriceContainer
                         }
                     }
                 }
-            }
-            else
-            {
-                _logger.LogInformation("Found data with resolution: {resolution}", period.Resolution);
             }
         }
 
