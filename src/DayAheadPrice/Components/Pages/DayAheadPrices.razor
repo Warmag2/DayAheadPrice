@@ -29,16 +29,16 @@
     @if (prices != null && prices.Any())
     {
         var maxPrice = prices.Max(p => p.Value);
+        var minPrice = prices.Min(p => p.Value);
         var ceilPrice = (int)Math.Ceiling(maxPrice / 5) * 5;
-        var gridHeightPercent = 500 / ceilPrice;
+        var floorPrice = (int)Math.Floor(minPrice / 5) * 5;
 
         <div class="histogramcontent">
-            <HistogramBar BarHeightPercent=100d GridHeightPercent=@gridHeightPercent Count=@prices.Count Price=0d Time=@DateTime.MinValue />
+            <HistogramBar Max=@ceilPrice Min=@floorPrice Count=@prices.Count Price=0d Time=@DateTime.MinValue />
 
             @foreach (var price in prices)
             {
-                var barHeightPercent = 100 * (ceilPrice - price.Value) / ceilPrice;
-                <HistogramBar BarHeightPercent=@barHeightPercent GridHeightPercent=@gridHeightPercent Count=@prices.Count Price=@price.Value Time=@price.Key PriceCallback=@PriceCallback TimeCallback=@TimeCallback />
+                <HistogramBar Max=@ceilPrice Min=@floorPrice Count=@prices.Count Price=@price.Value Time=@price.Key PriceCallback=@PriceCallback TimeCallback=@TimeCallback />
             }
         </div>
     }

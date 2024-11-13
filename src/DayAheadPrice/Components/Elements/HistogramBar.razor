@@ -2,45 +2,63 @@
 @inherits ComponentBase
 
 @{
-    var gridLines = (int)(BarHeightPercent > 100.0 ? 100.0 : BarHeightPercent / GridHeightPercent);
+    var barHeightPercent = 100 * (Price - Min) / (Max - Min); // May be negative
+    var gridHeightPercent = 500 / (Max - Math.Min(Min, 0.0d));
+
+    // Number of grid lines are needed to divide the bar into 5c increments
+    var gridLines = (int)Math.Round(100.0d / gridHeightPercent);
+    var emptyGridLines = barHeightPercent < 100.0 - gridHeightPercent ? (int)((100 - barHeightPercent) / gridHeightPercent) : 0;
+    var fullBarLines = (int)(barHeightPercent/gridHeightPercent);
+    var intersectionEmptyFraction = gridHeightPercent - (barHeightPercent - fullBarLines * gridHeightPercent);
+    //urp
 }
 
-<div class="fullheight histogrambar @(_hoverActive ? "histogrambarhover" : string.Empty) @(Time.Hour == 23 ? "dayline" : string.Empty) @(Time.Day == DateTime.Now.Day && Time != DateTime.Now.Floor() ? "currentday" : string.Empty) @(Time == DateTime.Now.Floor() ? "currenthour" : string.Empty)" style=@($"width:{(99.5/(Count+1)).ToString("#.###")}%") @onmouseenter=OnBarHover @onmouseleave=OnBarNoHover @ontouchenter=OnBarTouch @ontouchleave=OnBarNoTouch>
-    @for (int ii = 0; ii < gridLines; ii++)
+<div class="fullheight histogrambar @(Time.Hour == 23 ? "dayline" : string.Empty) @(Time.Day == DateTime.Now.Day && Time != DateTime.Now.Floor() ? "currentday" : string.Empty) @(Time == DateTime.Now.Floor() ? "currenthour" : string.Empty)" style=@($"width:{(99.5/(Count+1)).ToString("#.###")}%") @onmouseenter=OnBarHover @ontouchenter=OnBarTouch>
+    @if (Time == DateTime.MinValue)
     {
-        <div class="noprice @(Time == DateTime.MinValue ? "gridhost" : string.Empty)" style=@($"height:{GridHeightPercent.ToString("#.###")}%")>
-            @if (ii==0 && Time != DateTime.MinValue)
-            {
-                @(Time.Hour)
-            }
-
-            @if (Time == DateTime.MinValue)
-            {
-                <div class="fullwidth gridnumber">@($"{(gridLines - 1 - ii) * 5}")</div>
-            }
-        </div>
+        @for (int ii = 0; ii < gridLines; ii++)
+        {
+            <div class="noprice gridhost" style=@($"height:{gridHeightPercent.ToString("#.###")}%")>
+                <div class="fullwidth gridnumber">@($"{Max - (ii+1) * 5}")</div>
+            </div>
+        }
     }
-    @if (Time != DateTime.MinValue && BarHeightPercent < 100.0)
-    {
-        <div class="noprice fullwidth" style=@($"height:{(BarHeightPercent-gridLines*GridHeightPercent).ToString("#.###")}%")>
-            @if (gridLines == 0)
+    else {
+        @for (int ii = 0; ii < emptyGridLines + 1; ii++)
+        {
+            @if(ii < emptyGridLines)
             {
-                @(Time.Hour)
+                <div class="noprice" style=@($"height:{gridHeightPercent.ToString("#.###")}%")>
+                    @if (ii == 0)
+                    {
+                        @(Time.Hour)
+                    }
+                </div>
             }
-        </div>
-        <div class="price fullwidth" style=@($"height:{(100-BarHeightPercent).ToString("#.###")}%") />
+            // Case where ther is a non-full grid spot
+            else
+            {
+                <div class="noprice" style=@($"height:{intersectionEmptyFraction.ToString("#.###")}%")>
+                    @if (ii == 0)
+                    {
+                        @(Time.Hour)
+                    }
+                </div>
+            }
+        }
+
+        // Full bar to bottom
+        <div class="price" style=@($"height:{barHeightPercent.ToString("#.###")}%") />
     }
 </div>
 
 @code {
-    private bool _hoverActive = false;
-
     //<span>@(Time == DateTime.MinValue? $"{(gridLines - 1 - ii) * 5}" : string.Empty)</span>
     [Parameter]
-    public double BarHeightPercent { get; set; }
+    public int Max { get; set; }
 
     [Parameter]
-    public double GridHeightPercent { get; set; }
+    public int Min { get; set; }
 
     [Parameter]
     public int Count { get; set; }
@@ -62,19 +80,9 @@
         HoverAct();
     }
 
-    private void OnBarNoHover(MouseEventArgs e)
-    {
-        HoverNoAct();
-    }
-
     private void OnBarTouch(TouchEventArgs e)
     {
         HoverAct();
-    }
-
-    private void OnBarNoTouch(TouchEventArgs e)
-    {
-        HoverNoAct();
     }
 
     private void HoverAct()
@@ -84,19 +92,7 @@
             return;
         }
 
-        _hoverActive = true;
         PriceCallback.InvokeAsync(Price);
         TimeCallback.InvokeAsync(Time);
-    }
-
-    private void HoverNoAct()
-    {
-        if (Time == DateTime.MinValue)
-        {
-            return;
-        }
-        
-        _hoverActive = false;
-        StateHasChanged();
     }
 }
