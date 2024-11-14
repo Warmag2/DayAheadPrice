@@ -69,13 +69,13 @@
     private void PriceCallback(decimal input)
     {
         SetPriceString(input);
-        StateHasChanged();
+        //StateHasChanged();
     }
 
     private void TimeCallback(DateTime input)
     {
         SetTimeString(input);
-        StateHasChanged();
+        //StateHasChanged();
     }
 
     private void SetPriceString(decimal input)
@@ -85,13 +85,7 @@
 
     private void SetTimeString(DateTime input)
     {
-        var inputh = input.AddHours(1);
-        _timeString = $"{input.Month.ToString("00")}-{input.Day.ToString("00")} \u23F2{input.Hour.ToString("00")} \u2014 {inputh.Month.ToString("00")}-{inputh.Day.ToString("00")} \u23F2{inputh.Hour.ToString("00")}";
-    }
-
-    private void ValueChanged(ChangeEventArgs e)
-    {
-        StateHasChanged();
+        _timeString = $"{input.Month.ToString("00")}-{input.Day.ToString("00")} \u23F2{input.Hour.ToString("00")} \u2014 {(input.Hour + 1).ToString("00")}";
     }
 
     protected override async Task OnInitializedAsync()

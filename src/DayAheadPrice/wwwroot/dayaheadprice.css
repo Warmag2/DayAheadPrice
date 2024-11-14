@@ -125,6 +125,10 @@ div.histogrambar:hover {
     background: #6787B7;
 }
 
+div.histogrambar:active {
+    background: #6787B7;
+}
+
 div.price {
     background: rgba(0, 152, 0, .6);
     box-shadow: inset 0px 0px 0px 1px darkslategray;
