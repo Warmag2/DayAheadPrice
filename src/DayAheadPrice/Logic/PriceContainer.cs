@@ -72,9 +72,9 @@ public class PriceContainer
     /// </summary>
     /// <param name="price">The number as string.</param>
     /// <returns>The number as double.</returns>
-    private static double ParsePrice(string price)
+    private static decimal ParsePrice(string price)
     {
-        return double.Parse(price.Replace(",", string.Empty));
+        return decimal.Parse(price.Replace(",", string.Empty));
     }
 
     private PriceList MakePriceListFromResult(Publication_MarketDocument result)
@@ -123,7 +123,7 @@ public class PriceContainer
 
         for (var time = startDateTime; time < startDateTime.AddHours(48); time += TimeSpan.FromHours(1))
         {
-            priceList.Prices.Add(time, _rand.Next(1000) / 50.0d);
+            priceList.Prices.Add(time, _rand.Next(1000) / 50.0m);
         }
 
         return priceList;
@@ -133,11 +133,11 @@ public class PriceContainer
     {
         if (_endpointOptions.GenerateTestData)
         {
-            var prices = new SortedList<DateTime, double>();
+            var prices = new SortedList<DateTime, decimal>();
 
             for (var date = DateTime.UtcNow.AddDays(-0.5).Floor(); date < DateTime.UtcNow.AddDays(0.5).Floor(); date += TimeSpan.FromHours(1))
             {
-                prices.Add(date, 10.0d * Math.Sin(2 * Math.PI * date.Hour / 24));
+                prices.Add(date, 10.0m * (decimal)Math.Sin(2 * Math.PI * date.Hour / 24));
             }
 
             return new PriceList
@@ -177,11 +177,6 @@ public class PriceContainer
 
         var xmlReader = XmlReader.Create(response.Content.ReadAsStream(), xmlReaderSettings);
 
-        if (serializer.Deserialize(xmlReader) is not Publication_MarketDocument result)
-        {
-            return GetTestPriceList();
-        }
-
-        return MakePriceListFromResult(result);
+        return MakePriceListFromResult(serializer.Deserialize(xmlReader) as Publication_MarketDocument ?? throw new InvalidDataException("Could not correctly deserialize data."));
     }
 }

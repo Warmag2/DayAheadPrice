@@ -2,18 +2,19 @@
 @inherits ComponentBase
 
 @{
-    var barHeightPercent = 100 * (Price - Min) / (Max - Min); // May be negative
-    var gridHeightPercent = 500 / (Max - Math.Min(Min, 0.0d));
+    var barHeightPercent = 100 * Price / (Max - Min); // May be negative
+    var gridHeightPercent = 500 / (Max - Math.Min(Min, 0.0m));
 
     // Number of grid lines are needed to divide the bar into 5c increments
-    var gridLines = (int)Math.Round(100.0d / gridHeightPercent);
-    var emptyGridLines = barHeightPercent < 100.0 - gridHeightPercent ? (int)((100 - barHeightPercent) / gridHeightPercent) : 0;
-    var fullBarLines = (int)(barHeightPercent/gridHeightPercent);
-    var intersectionEmptyFraction = gridHeightPercent - (barHeightPercent - fullBarLines * gridHeightPercent);
-    //urp
+    var gridLines = (int)Math.Round(100.0m / gridHeightPercent);
+    var emptyGridLines = barHeightPercent > 0 ? Max / 5 - (int)Math.Ceiling(barHeightPercent / gridHeightPercent) : -Min / 5 - (int)Math.Ceiling(-barHeightPercent / gridHeightPercent);
+    var fullBarLines = (int)(Math.Abs(barHeightPercent) / gridHeightPercent);
+    var intersectionEmptyFraction = gridHeightPercent - (Math.Abs(barHeightPercent) - fullBarLines * gridHeightPercent) % gridHeightPercent;
+    var barVisible = Price != 0;
+    var mixedBlockVisible = Price % 5 != 0;
 }
 
-<div class="fullheight histogrambar @(Time.Hour == 23 ? "dayline" : string.Empty) @(Time.Day == DateTime.Now.Day && Time != DateTime.Now.Floor() ? "currentday" : string.Empty) @(Time == DateTime.Now.Floor() ? "currenthour" : string.Empty)" style=@($"width:{(99.5/(Count+1)).ToString("#.###")}%") @onmouseenter=OnBarHover @ontouchenter=OnBarTouch>
+<div class="fullheight histogrambar @(Time.Day == DateTime.Now.Day && Time != DateTime.Now.Floor() ? "currentday" : string.Empty) @(Time == DateTime.Now.Floor() ? "currenthour" : string.Empty)" style=@($"width:{(99.5/(Count+1)).ToString("#.###")}%") @onmouseenter=OnBarHover @ontouchenter=OnBarTouch>
     @if (Time == DateTime.MinValue)
     {
         @for (int ii = 0; ii < gridLines; ii++)
@@ -24,9 +25,10 @@
         }
     }
     else {
-        @for (int ii = 0; ii < emptyGridLines + 1; ii++)
+        @if (barHeightPercent > 0)
         {
-            @if(ii < emptyGridLines)
+            // Over zero
+            @for (int ii = 0; ii < emptyGridLines; ii++)
             {
                 <div class="noprice" style=@($"height:{gridHeightPercent.ToString("#.###")}%")>
                     @if (ii == 0)
@@ -35,25 +37,66 @@
                     }
                 </div>
             }
-            // Case where ther is a non-full grid spot
-            else if(fullBarLines + emptyGridLines < gridLines)
+
+            // Mixed block, may be height zero
+            @if (mixedBlockVisible)
             {
                 <div class="noprice" style=@($"height:{intersectionEmptyFraction.ToString("#.###")}%")>
+                    @if (emptyGridLines == 0)
+                    {
+                        @(Time.Hour)
+                    }
+                </div>
+            }
+
+            // Full bar to zero
+            @if (barVisible)
+            {
+                <div class="price" style=@($"height:{barHeightPercent.ToString("#.###")}%")>
+                    @if (!mixedBlockVisible && emptyGridLines == 0)
+                    {
+                        @(Time.Hour)
+                    }
+                </div>
+            }
+
+            // Pad under zero
+            @for (int ii=0; ii<-Min/5; ii++)
+            {
+                <div class="noprice" style=@($"height:{gridHeightPercent.ToString("#.###")}%") />
+            }
+        }
+        else
+        {
+            // Pad over zero
+            @for (int ii = 0; ii < Max / 5; ii++)
+            {
+                <div class="noprice" style=@($"height:{gridHeightPercent.ToString("#.###")}%")>
                     @if (ii == 0)
                     {
                         @(Time.Hour)
                     }
                 </div>
             }
-        }
 
-        // Full bar to bottom
-        <div class="price" style=@($"height:{barHeightPercent.ToString("#.###")}%")>
-            @if (fullBarLines == gridLines)
+            // Under zero
+            // Full bar from zero
+            @if (barVisible)
             {
-                @(Time.Hour)
+                <div class="price" style=@($"height:{(-barHeightPercent).ToString("#.###")}%") />
             }
-        </div>
+
+            @if (mixedBlockVisible)
+            {
+                // Mixed block, may be height zero
+                <div class="noprice" style=@($"height:{intersectionEmptyFraction.ToString("#.###")}%") />
+            }
+
+            @for (int ii = 0; ii < emptyGridLines; ii++)
+            {
+                <div class="noprice" style=@($"height:{gridHeightPercent.ToString("#.###")}%") />
+            }
+        }
     }
 </div>
 
@@ -69,13 +112,13 @@
     public int Count { get; set; }
 
     [Parameter]
-    public double Price { get; set; }
+    public decimal Price { get; set; }
 
     [Parameter]
     public DateTime Time { get; set; }
 
     [Parameter]
-    public EventCallback<double> PriceCallback { get; set; }
+    public EventCallback<decimal> PriceCallback { get; set; }
 
     [Parameter]
     public EventCallback<DateTime> TimeCallback { get; set; }

@@ -102,11 +102,7 @@ div.histogramcontent {
     margin-right: auto;
     flex-grow: 1;
     margin-top: 1vh;
-}
-
-div.dayline {
-    border-right: 1px dotted;
-    border-color: darkslategrey;
+    box-shadow: 0px -1px 0px 0px darkslategray;
 }
 
 div.currenthour {
@@ -119,8 +115,7 @@ div.currentday {
 
 div.histogrambar {
     text-align: center;
-    border-bottom: 1px solid;
-    border-color: darkslategrey;
+    border: none;
     float: left;
     font-size: 1.5vw;
     font-weight: bold;
@@ -131,18 +126,13 @@ div.histogrambar:hover {
 }
 
 div.price {
-    background: rgba(0, 160, 0, .6);
-    border-left: 1px solid;
-    border-right: 1px solid;
-    border-top: 1px solid;
-    border-color: darkslategrey;
+    background: rgba(0, 152, 0, .6);
+    box-shadow: inset 0px 0px 0px 1px darkslategray;
 }
 
 div.noprice {
     background: transparent;
-    text-align: center;
-    border-top: 1px solid;
-    border-color: darkslategrey;
+    box-shadow: inset 0px -1px 0px 0px darkslategray;
 }
 
 div.gridhost {
@@ -151,8 +141,6 @@ div.gridhost {
 
 div.gridnumber {
     align-self: flex-end;
-    text-align: center;
-    color: black;
     font-size: 1.8vw;
     font-weight: bold;
 }
