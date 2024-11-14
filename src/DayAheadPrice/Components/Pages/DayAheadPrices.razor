@@ -14,7 +14,7 @@
 
 @{
     var prices = _priceList?.GetPrices(_margin, _vat);
-    var printValue = prices?.TryGetValue(DateTime.Now.Floor(), out var value) == true ? value : 0d;
+    var printValue = prices?.TryGetValue(DateTime.Now.Floor(), out var value) == true ? value : 0m;
 }
 
 <div class="page">
@@ -29,16 +29,16 @@
     @if (prices != null && prices.Any())
     {
         var maxPrice = prices.Max(p => p.Value);
+        var minPrice = prices.Min(p => p.Value);
         var ceilPrice = (int)Math.Ceiling(maxPrice / 5) * 5;
-        var gridHeightPercent = 500 / ceilPrice;
+        var floorPrice = (int)Math.Floor(minPrice / 5) * 5;
 
         <div class="histogramcontent">
-            <HistogramBar BarHeightPercent=100d GridHeightPercent=@gridHeightPercent Count=@prices.Count Price=0d Time=@DateTime.MinValue />
+            <HistogramBar Max=@ceilPrice Min=@floorPrice Count=@prices.Count Price=0m Time=@DateTime.MinValue />
 
             @foreach (var price in prices)
             {
-                var barHeightPercent = 100 * (ceilPrice - price.Value) / ceilPrice;
-                <HistogramBar BarHeightPercent=@barHeightPercent GridHeightPercent=@gridHeightPercent Count=@prices.Count Price=@price.Value Time=@price.Key PriceCallback=@PriceCallback TimeCallback=@TimeCallback />
+                <HistogramBar Max=@ceilPrice Min=@floorPrice Count=@prices.Count Price=@price.Value Time=@price.Key PriceCallback=@PriceCallback TimeCallback=@TimeCallback />
             }
         </div>
     }
@@ -66,7 +66,7 @@
     private string _timeString = string.Empty;
     private string _priceString = string.Empty;
 
-    private void PriceCallback(double input)
+    private void PriceCallback(decimal input)
     {
         SetPriceString(input);
         StateHasChanged();
@@ -78,7 +78,7 @@
         StateHasChanged();
     }
 
-    private void SetPriceString(double input)
+    private void SetPriceString(decimal input)
     {
         _priceString = $"{input.ToString("0.00")}c/kWh";
     }
@@ -119,7 +119,7 @@
         if (_priceList != null)
         {
             var prices = _priceList?.GetPrices(_margin, _vat);
-            var printValue = prices?.TryGetValue(DateTime.Now.Floor(), out var value) == true ? value : 0d;
+            var printValue = prices?.TryGetValue(DateTime.Now.Floor(), out var value) == true ? value : 0m;
             SetPriceString(printValue);
             SetTimeString(DateTime.Now.Floor());
         }
