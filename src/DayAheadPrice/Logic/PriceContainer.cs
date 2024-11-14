@@ -131,6 +131,21 @@ public class PriceContainer
 
     private async Task<PriceList> MakePriceRequestAsync()
     {
+        if (_endpointOptions.GenerateTestData)
+        {
+            var prices = new SortedList<DateTime, double>();
+
+            for (var date = DateTime.UtcNow.AddDays(-0.5).Floor(); date < DateTime.UtcNow.AddDays(0.5).Floor(); date += TimeSpan.FromHours(1))
+            {
+                prices.Add(date, 10.0d * Math.Sin(2 * Math.PI * date.Hour / 24));
+            }
+
+            return new PriceList
+            {
+                Prices = prices
+            };
+        }
+
         using HttpClient httpClient = new();
         httpClient.BaseAddress = new Uri(_endpointOptions.BaseUrl);
         var request = new HttpRequestMessage(HttpMethod.Get, "api")

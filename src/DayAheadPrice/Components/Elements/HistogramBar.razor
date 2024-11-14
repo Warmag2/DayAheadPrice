@@ -36,7 +36,7 @@
                 </div>
             }
             // Case where ther is a non-full grid spot
-            else
+            else if(fullBarLines + emptyGridLines < gridLines)
             {
                 <div class="noprice" style=@($"height:{intersectionEmptyFraction.ToString("#.###")}%")>
                     @if (ii == 0)
@@ -48,7 +48,12 @@
         }
 
         // Full bar to bottom
-        <div class="price" style=@($"height:{barHeightPercent.ToString("#.###")}%") />
+        <div class="price" style=@($"height:{barHeightPercent.ToString("#.###")}%")>
+            @if (fullBarLines == gridLines)
+            {
+                @(Time.Hour)
+            }
+        </div>
     }
 </div>
 

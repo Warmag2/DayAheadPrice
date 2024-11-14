@@ -42,9 +42,9 @@ h1:focus {
     color: white;
 }
 
-    .blazor-error-boundary::after {
-        content: "An error has occurred."
-    }
+.blazor-error-boundary::after {
+    content: "An error has occurred."
+}
 
 .darker-border-checkbox.form-check-input {
     border-color: #929292;
@@ -62,12 +62,12 @@ h1:focus {
     z-index: 1000;
 }
 
-    #blazor-error-ui .dismiss {
-        cursor: pointer;
-        position: absolute;
-        right: 0.75rem;
-        top: 0.5rem;
-    }
+#blazor-error-ui .dismiss {
+    cursor: pointer;
+    position: absolute;
+    right: 0.75rem;
+    top: 0.5rem;
+}
 
 /**********************************************************************
     Own additions
@@ -94,11 +94,9 @@ div.histogramheader {
     max-height: 8vh;
 }
 
-div.histogramheader:hover .histogrambar {
-    background: aqua;
-}
-
 div.histogramcontent {
+    display: flex;
+    flex-direction: row;
     width: 99%;
     margin-left: auto;
     margin-right: auto;
@@ -119,7 +117,7 @@ div.currentday {
     background: #D8D8D8;
 }
 
-.histogrambar {
+div.histogrambar {
     text-align: center;
     border-bottom: 1px solid;
     border-color: darkslategrey;
@@ -128,28 +126,23 @@ div.currentday {
     font-weight: bold;
 }
 
-.price {
-    background: green;
-    opacity: 0.7;
+div.histogrambar:hover {
+    background: #6787B7;
+}
+
+div.price {
+    background: rgba(0, 160, 0, .6);
     border-left: 1px solid;
     border-right: 1px solid;
     border-top: 1px solid;
     border-color: darkslategrey;
 }
 
-.noprice {
+div.noprice {
     background: transparent;
     text-align: center;
     border-top: 1px solid;
     border-color: darkslategrey;
-}
-
-.histogrambar + .price:hover {
-    background: #6787B7;
-}
-
-.histogrambar + .noprice:hover {
-    background: #6787B7;
 }
 
 div.gridhost {

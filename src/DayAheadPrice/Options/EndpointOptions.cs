@@ -23,7 +23,6 @@ public class EndpointOptions
     /// </remarks>
     public string BusinessType { get; set; } = "A62";
 
-
     /// <summary>
     /// Domain type to ask.
     /// </summary>
@@ -36,6 +35,11 @@ public class EndpointOptions
     /// Domain to ask prices for.
     /// </summary>
     public string Domain { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Generate test data instead of making API calls.
+    /// </summary>
+    public bool GenerateTestData { get; set; } = false;
 
     /// <summary>
     /// Process type.
