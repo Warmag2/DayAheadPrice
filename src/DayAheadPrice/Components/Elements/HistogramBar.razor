@@ -1,17 +1,18 @@
 ﻿@using DayAheadPrice.Extensions
+@using static DayAheadPrice.Logic.GridScaleSelector
 @inherits ComponentBase
 
 @{
+    var gridScale = GetGridScale(Max, Min);
     var barHeightPercent = 100 * Price / (Max - Min); // May be negative
-    var gridHeightPercent = 500 / (Max - Math.Min(Min, 0.0m));
+    var gridHeightPercent = gridScale*100 / (Max - Math.Min(Min, 0.0m));
 
-    // Number of grid lines are needed to divide the bar into 5c increments
     var gridLines = (int)Math.Round(100.0m / gridHeightPercent);
-    var emptyGridLines = barHeightPercent > 0 ? Max / 5 - (int)Math.Ceiling(barHeightPercent / gridHeightPercent) : -Min / 5 - (int)Math.Ceiling(-barHeightPercent / gridHeightPercent);
+    var emptyGridLines = barHeightPercent > 0 ? Max / gridScale - (int)Math.Ceiling(barHeightPercent / gridHeightPercent) : -Min / gridScale - (int)Math.Ceiling(-barHeightPercent / gridHeightPercent);
     var fullBarLines = (int)(Math.Abs(barHeightPercent) / gridHeightPercent);
     var intersectionEmptyFraction = gridHeightPercent - (Math.Abs(barHeightPercent) - fullBarLines * gridHeightPercent) % gridHeightPercent;
     var barVisible = Price != 0;
-    var mixedBlockVisible = Price % 5 != 0;
+    var mixedBlockVisible = Price % gridScale != 0;
 
     var eventToRun = $"setPriceData(event, '{GetPriceString()}', '{GetTimeString()}')";
 }
@@ -22,7 +23,7 @@
         @for (int ii = 0; ii < gridLines; ii++)
         {
             <div class="noprice gridhost" style=@($"height:{gridHeightPercent.ToString("#.###")}%")>
-                <div class="fullwidth gridnumber">@($"{Max - (ii+1) * 5}")</div>
+                <div class="fullwidth gridnumber">@($"{Max - ((ii+1)*gridScale)}")</div>
             </div>
         }
     }
@@ -63,7 +64,7 @@
             }
 
             // Pad under zero
-            @for (int ii=0; ii<-Min/5; ii++)
+            @for (int ii = 0; ii < -Min / gridScale; ii++)
             {
                 <div class="noprice" style=@($"height:{gridHeightPercent.ToString("#.###")}%") />
             }
@@ -71,7 +72,7 @@
         else
         {
             // Pad over zero
-            @for (int ii = 0; ii < Max / 5; ii++)
+            @for (int ii = 0; ii < Max / gridScale; ii++)
             {
                 <div class="noprice" style=@($"height:{gridHeightPercent.ToString("#.###")}%")>
                     @if (ii == 0)
@@ -104,10 +105,10 @@
 
 @code {
     [Parameter]
-    public int Max { get; set; }
+    public decimal Max { get; set; }
 
     [Parameter]
-    public int Min { get; set; }
+    public decimal Min { get; set; }
 
     [Parameter]
     public int Count { get; set; }
@@ -126,28 +127,28 @@
 
     /*private async Task OnBarHover(MouseEventArgs e)
     {
-        await JS.InvokeAsync<string>("setPriceData", [e, GetPriceString(), GetTimeString()]);
+    await JS.InvokeAsync<string>("setPriceData", [e, GetPriceString(), GetTimeString()]);
 
-        //HoverAct();
+    //HoverAct();
     }
 
     private async Task OnBarTouch(TouchEventArgs e)
     {
-        await JS.InvokeAsync<string>("setPriceData", [e, GetPriceString(), GetTimeString()]);
+    await JS.InvokeAsync<string>("setPriceData", [e, GetPriceString(), GetTimeString()]);
 
-        //HoverAct();
-        //onclick=setPriceData(event) onmouseover=setPriceData(event) ontouchstart=setPriceData(event)
+    //HoverAct();
+    //onclick=setPriceData(event) onmouseover=setPriceData(event) ontouchstart=setPriceData(event)
     }
 
     private void HoverAct()
     {
-        if (Time == DateTime.MinValue)
-        {
-            return;
-        }
+    if (Time == DateTime.MinValue)
+    {
+        return;
+    }
 
-        PriceCallback.InvokeAsync(Price);
-        TimeCallback.InvokeAsync(Time);
+    PriceCallback.InvokeAsync(Price);
+    TimeCallback.InvokeAsync(Time);
     }*/
 
     private string GetPriceString()

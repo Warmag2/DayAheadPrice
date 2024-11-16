@@ -137,7 +137,7 @@ public class PriceContainer
 
             for (var date = DateTime.UtcNow.AddDays(-0.5).Floor(); date < DateTime.UtcNow.AddDays(0.5).Floor(); date += TimeSpan.FromHours(1))
             {
-                prices.Add(date, 10.0m * (decimal)Math.Sin(2 * Math.PI * date.Hour / 24));
+                prices.Add(date, 1m * (decimal)Math.Sin(2 * Math.PI * date.Hour / 24));
             }
 
             return new PriceList

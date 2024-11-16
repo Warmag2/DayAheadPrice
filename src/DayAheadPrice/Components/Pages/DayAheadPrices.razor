@@ -4,6 +4,7 @@
 @using DayAheadPrice.Logic
 @using DayAheadPrice.Options
 @using Microsoft.Extensions.Options
+@using static DayAheadPrice.Logic.GridScaleSelector
 @inject PriceContainer _priceContainer
 @inject IOptions<PricingOptions> _pricingOptions
 @inject NavigationManager _navigationManager
@@ -37,8 +38,10 @@
     {
         var maxPrice = prices.Max(p => p.Value);
         var minPrice = prices.Min(p => p.Value);
-        var ceilPrice = (int)Math.Ceiling(maxPrice / 5) * 5;
-        var floorPrice = (int)Math.Floor(minPrice / 5) * 5;
+        minPrice = Math.Min(minPrice, 0.0m);
+        var gridScale = GetGridScale((int)Math.Ceiling(maxPrice), (int)Math.Floor(minPrice));
+        var ceilPrice = (int)Math.Ceiling(maxPrice / gridScale) * gridScale;
+        var floorPrice = (int)Math.Floor(minPrice / gridScale) * gridScale;
 
         <div class="histogramcontent">
             <HistogramBar Max=@ceilPrice Min=@floorPrice Count=@prices.Count Price=0m Time=@DateTime.MinValue />
