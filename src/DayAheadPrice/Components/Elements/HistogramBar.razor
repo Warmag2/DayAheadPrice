@@ -1,6 +1,5 @@
 ﻿@using DayAheadPrice.Extensions
 @inherits ComponentBase
-@inject IJSRuntime JS
 
 @{
     var barHeightPercent = 100 * Price / (Max - Min); // May be negative
@@ -13,9 +12,11 @@
     var intersectionEmptyFraction = gridHeightPercent - (Math.Abs(barHeightPercent) - fullBarLines * gridHeightPercent) % gridHeightPercent;
     var barVisible = Price != 0;
     var mixedBlockVisible = Price % 5 != 0;
+
+    var eventToRun = $"setPriceData(event, '{GetPriceString()}', '{GetTimeString()}')";
 }
 
-<div id=@Id class="fullheight histogrambar @(Time.Day == DateTime.Now.Day && Time != DateTime.Now.Floor() ? "currentday" : string.Empty) @(Time == DateTime.Now.Floor() ? "currenthour" : string.Empty)" style=@($"width:{(99.5/(Count+1)).ToString("#.###")}%") @onmouseenter=OnBarHover @ontouchenter=OnBarTouch>
+<div class="fullheight histogrambar @(Time.Day == DateTime.Now.Day && Time != DateTime.Now.Floor() ? "currentday" : string.Empty) @(Time == DateTime.Now.Floor() ? "currenthour" : string.Empty)" style=@($"width:{(99.5/(Count+1)).ToString("#.###")}%") onmouseenter=@(eventToRun) ontouchenter=@(eventToRun)>
     @if (Time == DateTime.MinValue)
     {
         @for (int ii = 0; ii < gridLines; ii++)
@@ -103,9 +104,6 @@
 
 @code {
     [Parameter]
-    public string Id { get; set; }
-
-    [Parameter]
     public int Max { get; set; }
 
     [Parameter]
@@ -126,7 +124,7 @@
     [Parameter]
     public EventCallback<DateTime> TimeCallback { get; set; }
 
-    private async Task OnBarHover(MouseEventArgs e)
+    /*private async Task OnBarHover(MouseEventArgs e)
     {
         await JS.InvokeAsync<string>("setPriceData", [e, GetPriceString(), GetTimeString()]);
 
@@ -150,7 +148,7 @@
 
         PriceCallback.InvokeAsync(Price);
         TimeCallback.InvokeAsync(Time);
-    }
+    }*/
 
     private string GetPriceString()
     {
