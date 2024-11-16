@@ -1,5 +1,6 @@
 ﻿@using DayAheadPrice.Extensions
 @inherits ComponentBase
+@inject IJSRuntime JS
 
 @{
     var barHeightPercent = 100 * Price / (Max - Min); // May be negative
@@ -14,7 +15,7 @@
     var mixedBlockVisible = Price % 5 != 0;
 }
 
-<div class="fullheight histogrambar @(Time.Day == DateTime.Now.Day && Time != DateTime.Now.Floor() ? "currentday" : string.Empty) @(Time == DateTime.Now.Floor() ? "currenthour" : string.Empty)" style=@($"width:{(99.5/(Count+1)).ToString("#.###")}%") @onmouseenter=OnBarHover @ontouchenter=OnBarTouch>
+<div id=@Id class="fullheight histogrambar @(Time.Day == DateTime.Now.Day && Time != DateTime.Now.Floor() ? "currentday" : string.Empty) @(Time == DateTime.Now.Floor() ? "currenthour" : string.Empty)" style=@($"width:{(99.5/(Count+1)).ToString("#.###")}%") @onmouseenter=OnBarHover @ontouchenter=OnBarTouch>
     @if (Time == DateTime.MinValue)
     {
         @for (int ii = 0; ii < gridLines; ii++)
@@ -101,7 +102,9 @@
 </div>
 
 @code {
-    //<span>@(Time == DateTime.MinValue? $"{(gridLines - 1 - ii) * 5}" : string.Empty)</span>
+    [Parameter]
+    public string Id { get; set; }
+
     [Parameter]
     public int Max { get; set; }
 
@@ -123,14 +126,19 @@
     [Parameter]
     public EventCallback<DateTime> TimeCallback { get; set; }
 
-    private void OnBarHover(MouseEventArgs e)
+    private async Task OnBarHover(MouseEventArgs e)
     {
-        HoverAct();
+        await JS.InvokeAsync<string>("setPriceData", [e, GetPriceString(), GetTimeString()]);
+
+        //HoverAct();
     }
 
-    private void OnBarTouch(TouchEventArgs e)
+    private async Task OnBarTouch(TouchEventArgs e)
     {
-        HoverAct();
+        await JS.InvokeAsync<string>("setPriceData", [e, GetPriceString(), GetTimeString()]);
+
+        //HoverAct();
+        //onclick=setPriceData(event) onmouseover=setPriceData(event) ontouchstart=setPriceData(event)
     }
 
     private void HoverAct()
@@ -142,5 +150,15 @@
 
         PriceCallback.InvokeAsync(Price);
         TimeCallback.InvokeAsync(Time);
+    }
+
+    private string GetPriceString()
+    {
+        return $"{Price.ToString("0.00")}c/kWh";
+    }
+
+    private string GetTimeString()
+    {
+        return $"{Time.Month.ToString("00")}-{Time.Day.ToString("00")} \u23F2{Time.Hour.ToString("00")} \u2014 {(Time.Hour + 1).ToString("00")}";
     }
 }

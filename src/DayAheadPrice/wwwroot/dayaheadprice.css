@@ -132,11 +132,15 @@ div.histogrambar:active {
 div.price {
     background: rgba(0, 152, 0, .6);
     box-shadow: inset 0px 0px 0px 1px darkslategray;
+    pointer-events: none;
+    touch-action: none;
 }
 
 div.noprice {
     background: transparent;
     box-shadow: inset 0px -1px 0px 0px darkslategray;
+    pointer-events: none;
+    touch-action: none;
 }
 
 div.gridhost {

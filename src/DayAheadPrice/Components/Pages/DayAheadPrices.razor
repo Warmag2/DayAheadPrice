@@ -17,12 +17,26 @@
     var printValue = prices?.TryGetValue(DateTime.Now.Floor(), out var value) == true ? value : 0m;
 }
 
+<script>
+    function messIt(event) {
+        document.getElementById("TimeHeader").innerHTML = "blaa";
+        document.getElementById("PriceHeader").innerHTML = "blöö";
+    }
+</script>
+
+<script>
+    function setPriceData(event, priceString, timeString) {
+        document.getElementById("TimeHeader").innerHTML = timeString;
+        document.getElementById("PriceHeader").innerHTML = priceString;
+    }
+</script>
+
 <div class="page">
-    <div class="fullwidth histogramheader">
+    <div Id="TimeHeader" class="fullwidth histogramheader" onclick=messIt(event)>
         @_timeString
     </div>
 
-    <div class="fullwidth histogramheader">
+    <div id="PriceHeader" class="fullwidth histogramheader" onclick=messIt(event)>
         @_priceString @($"(curr: {printValue.ToString("0.00")}c/kWh)")
     </div>
 
