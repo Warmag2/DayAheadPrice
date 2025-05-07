@@ -16,12 +16,15 @@
 @{
     var prices = _priceList?.GetPrices(_margin, _vat);
     var printValue = prices?.TryGetValue(DateTime.Now.Floor(), out var value) == true ? value : 0m;
+    // prices grouped by hour
+    var priceGroups = prices?.GroupBy(p => $"{p.Key.DayOfYear}-{p.Key.Hour}").ToList();
+    var pricesPerGroup = priceGroups?[0].Count();
 }
 
 <script>
     function setPriceData(event, priceString, timeString) {
-        document.getElementById("TimeHeader").innerHTML = timeString;
-        document.getElementById("PriceHeader").innerHTML = priceString;
+    document.getElementById("TimeHeader").innerHTML = timeString;
+    document.getElementById("PriceHeader").innerHTML = priceString;
     }
 </script>
 
@@ -34,7 +37,7 @@
         @_priceString @($"(curr: {printValue.ToString("0.00")}c/kWh)")
     </div>
 
-    @if (prices != null && prices.Any())
+    @if (prices != null && priceGroups != null && prices.Any())
     {
         var maxPrice = prices.Max(p => p.Value);
         var minPrice = prices.Min(p => p.Value);
@@ -44,11 +47,27 @@
         var floorPrice = (int)Math.Floor(minPrice / gridScale) * gridScale;
 
         <div class="histogramcontent">
-            <HistogramBar Max=@ceilPrice Min=@floorPrice Count=@prices.Count Price=0m Time=@DateTime.MinValue />
+            <div style=@($"width:5rem")>
+                <div class="fullwidth histogrambar timeheadernoleft" style=@($"height:4rem")>
+                </div>
+                <div class="fullheight fullwidth">
+                    <HistogramBar Max=@ceilPrice Min=@floorPrice Count=1 Price=0m Time=@DateTime.MinValue />
+                </div>
+            </div>
 
-            @foreach (var price in prices)
+            @foreach (var priceGroup in priceGroups)
             {
-                <HistogramBar Max=@ceilPrice Min=@floorPrice Count=@prices.Count Price=@price.Value Time=@price.Key PriceCallback=@PriceCallback TimeCallback=@TimeCallback />
+                <div style=@($"width:{(100m/(priceGroups.Count)).ToString("#.###")}%")>
+                    <div class="fullwidth histogrambar timeheader @(priceGroup.First().Key.DayOfYear == DateTime.Now.DayOfYear ? "currentday" : string.Empty)" style=@($"height:4rem")>
+                        @priceGroup.First().Key.Hour
+                    </div>
+                    <div class="fullheight fullwidth">
+                        @foreach (var price in priceGroup)
+                        {
+                            <HistogramBar Max=@ceilPrice Min=@floorPrice Count=@priceGroup.Count() Price=@price.Value Resolution=@_priceList!.Resolution Time=@price.Key />
+                        }
+                    </div>
+                </div>
             }
         </div>
     }
@@ -76,18 +95,6 @@
     private string _timeString = string.Empty;
     private string _priceString = string.Empty;
 
-    private void PriceCallback(decimal input)
-    {
-        SetPriceString(input);
-        //StateHasChanged();
-    }
-
-    private void TimeCallback(DateTime input)
-    {
-        SetTimeString(input);
-        //StateHasChanged();
-    }
-
     private void SetPriceString(decimal input)
     {
         _priceString = $"{input.ToString("0.00")}c/kWh";
@@ -95,7 +102,9 @@
 
     private void SetTimeString(DateTime input)
     {
-        _timeString = $"{input.Month.ToString("00")}-{input.Day.ToString("00")} \u23F2{input.Hour.ToString("00")} \u2014 {(input.Hour + 1).ToString("00")}";
+        var resolution = _priceList?.Resolution ?? TimeSpan.FromHours(1);
+        var endTime = input + resolution;
+        _timeString = $"{input.Month.ToString("00")}-{input.Day.ToString("00")} \u23F2{input.Hour.ToString("00")}:{input.Minute.ToString("00")} \u2014 {endTime.Hour.ToString("00")}:{endTime.Minute.ToString("00")}";
     }
 
     protected override async Task OnInitializedAsync()

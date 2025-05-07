@@ -43,7 +43,7 @@ public class PriceContainer
             {
                 _logger.LogInformation("Data timestamp ({last}) is older than current hour ({current}). Making new request.", _lastUpdate, currentTimeStamp);
 
-                _currentPriceList = await MakePriceRequestAsync();
+                _currentPriceList = await MakePriceRequestAsync(); // GetTestPriceList();
                 _lastUpdate = currentTimeStamp;
 
                 return _currentPriceList;
@@ -95,13 +95,13 @@ public class PriceContainer
 
                     if (timePosition >= now.AddHours(-12) && timePosition < nextDayEnd)
                     {
-                        if (!priceList.Prices.ContainsKey(timePosition))
+                        if (!priceList.Prices.TryGetValue(timePosition, out var value))
                         {
                             priceList.Prices.Add(timePosition, ParsePrice(point.Price) / 10);
                         }
                         else
                         {
-                            _logger.LogError("Trying to add duplicate value for time {Time}. Existing: {OldPrice}, New: {NewPrice}", timePosition, priceList.Prices[timePosition], ParsePrice(point.Price) / 10);
+                            _logger.LogError("Trying to add duplicate value for time {Time}. Existing: {OldPrice}, New: {NewPrice}", timePosition, value, ParsePrice(point.Price) / 10);
                         }
                     }
                 }
@@ -121,7 +121,7 @@ public class PriceContainer
 
         var startDateTime = DateTime.Now.Floor().AddHours(-24);
 
-        for (var time = startDateTime; time < startDateTime.AddHours(48); time += TimeSpan.FromHours(1))
+        for (var time = startDateTime; time < startDateTime.AddHours(48); time += TimeSpan.FromMinutes(15))
         {
             priceList.Prices.Add(time, _rand.Next(1000) / 50.0m);
         }
@@ -165,8 +165,7 @@ public class PriceContainer
                 })
         };
 
-        //var response = await httpClient.GetAsync($"https://web-api.tp.entsoe.eu/api?securityToken={_endpointOptions.ApiKey}&documentType={_endpointOptions.DocumentType}&outBiddingZone_Domain={_endpointOptions.Domain}&periodStart={GetDateTimeFormatString(DateTime.Now.AddDays(-1).Floor())}&periodEnd={GetDateTimeFormatString(DateTime.Now.AddDays(1).Floor())}");
-
+        // var response = await httpClient.GetAsync($"https://web-api.tp.entsoe.eu/api?securityToken={_endpointOptions.ApiKey}&documentType={_endpointOptions.DocumentType}&outBiddingZone_Domain={_endpointOptions.Domain}&periodStart={GetDateTimeFormatString(DateTime.Now.AddDays(-1).Floor())}&periodEnd={GetDateTimeFormatString(DateTime.Now.AddDays(1).Floor())}");
         var response = await httpClient.SendAsync(request);
 
         var serializer = new XmlSerializer(typeof(Publication_MarketDocument));
@@ -175,7 +174,7 @@ public class PriceContainer
             DtdProcessing = DtdProcessing.Parse
         };
 
-        var xmlReader = XmlReader.Create(response.Content.ReadAsStream(), xmlReaderSettings);
+        var xmlReader = XmlReader.Create(await response.Content.ReadAsStreamAsync(), xmlReaderSettings);
 
         return MakePriceListFromResult(serializer.Deserialize(xmlReader) as Publication_MarketDocument ?? throw new InvalidDataException("Could not correctly deserialize data."));
     }

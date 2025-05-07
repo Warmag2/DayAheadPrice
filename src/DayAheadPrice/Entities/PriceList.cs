@@ -12,6 +12,22 @@ public class PriceList
     public SortedList<DateTime, decimal> Prices { get; set; } = new();
 
     /// <summary>
+    /// The resolution of the price list, i.e. the time interval between each price point.
+    /// </summary>
+    public TimeSpan Resolution
+    {
+        get
+        {
+            if (Prices.Count < 2)
+            {
+                return TimeSpan.FromHours(1);
+            }
+
+            return Prices.Keys[1] - Prices.Keys[0];
+        }
+    }
+
+    /// <summary>
     /// Gets electricity prices adjusted by VAT and operator margin.
     /// </summary>
     /// <param name="margin">Operator margin (c/kWh).</param>
