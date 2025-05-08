@@ -105,6 +105,11 @@ div.histogramcontent {
 }
 
 div.timeheader {
+    text-align: center;
+    border: none;
+    float: left;
+    font-size: 1.5vw;
+    font-weight: bold;
     box-shadow: inset 1px -1px 0px 0px darkslategray;
 }
 

@@ -48,7 +48,7 @@
 
         <div class="histogramcontent">
             <div style=@($"width:5rem")>
-                <div class="fullwidth histogrambar timeheadernoleft" style=@($"height:4rem")>
+                <div class="fullwidth timeheader timeheadernoleft" style=@($"height:4rem")>
                 </div>
                 <div class="fullheight fullwidth">
                     <HistogramBar Max=@ceilPrice Min=@floorPrice Count=1 Price=0m Time=@DateTime.MinValue />
@@ -58,7 +58,7 @@
             @foreach (var priceGroup in priceGroups)
             {
                 <div style=@($"width:{(100m/(priceGroups.Count)).ToString("#.###")}%")>
-                    <div class="fullwidth histogrambar timeheader @(priceGroup.First().Key.DayOfYear == DateTime.Now.DayOfYear ? "currentday" : string.Empty)" style=@($"height:4rem")>
+                    <div class="fullwidth timeheader @(priceGroup.First().Key.DayOfYear == DateTime.Now.DayOfYear ? "currentday" : string.Empty)" style=@($"height:4rem")>
                         @priceGroup.First().Key.Hour
                     </div>
                     <div class="fullheight fullwidth">
