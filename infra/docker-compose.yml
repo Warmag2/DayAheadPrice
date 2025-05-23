@@ -1,6 +1,4 @@
-version: "3"
-
-services:  
+services:
   # Day Ahead Price web app
   dayaheadprice:
     container_name: dayaheadprice
