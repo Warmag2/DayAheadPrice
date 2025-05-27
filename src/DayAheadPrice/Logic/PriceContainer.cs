@@ -43,7 +43,7 @@ public class PriceContainer
             {
                 _logger.LogInformation("Data timestamp ({last}) is older than current hour ({current}). Making new request.", _lastUpdate, currentTimeStamp);
 
-                _currentPriceList = await MakePriceRequestAsync(); // GetTestPriceList();
+                _currentPriceList = _endpointOptions.UseTestData ? GetTestPriceList() : await MakePriceRequestAsync();
                 _lastUpdate = currentTimeStamp;
 
                 return _currentPriceList;
