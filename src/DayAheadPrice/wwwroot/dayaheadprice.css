@@ -91,6 +91,7 @@ div.fullwidth {
 div.pageheader {
     font-size: min(6vh, 6vw);
     text-align: center;
+    height: 10vh;
 }
 
 div.pagecontent {
@@ -98,6 +99,7 @@ div.pagecontent {
     width: 99%;
     margin-left: auto;
     margin-right: auto;
+    height: 100%;
 }
 
 div.currenthour {
@@ -119,20 +121,16 @@ div.leftborder {
 div.histogramheader {
     border: none;
     border-bottom: 1px solid darkslategray;
-    font-size: 1.6vw;
-    font-weight: bold;
-    text-align: center;
+    height: 7%;
 }
 
 div.histogramcontent {
     border: none;
     flex-direction: column;
-    height: 50vh;
-    text-align: center;
+    height: 93%;
 }
 
 div.histogrambar {
-    text-align: center;
     flex-direction: row;
     float: left;
 }
@@ -165,6 +163,7 @@ div.gridhost {
 
 div.gridnumber {
     align-self: flex-end;
-    font-size: 1.8vw;
+    font-size: 1.6vw;
     font-weight: bold;
+    text-align: center;
 }
