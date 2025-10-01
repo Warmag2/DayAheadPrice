@@ -1,7 +1,7 @@
 ﻿@using DayAheadPrice.Extensions
 @inherits ComponentBase
 
-<div class="histogramblock fullwidth">
+<div class="histogramblock fullheight fullwidth">
     <div class="gridhost histogramheader">
         <div class="fullwidth gridnumber">
             c€
@@ -14,13 +14,13 @@
 
 @foreach (var priceGroup in Prices.GroupBy(p => new DateTime(p.Key.Year, p.Key.Month, p.Key.Day, p.Key.Hour, 0, 0, DateTimeKind.Local)))
 {
-    <div class="histogramblock leftborder fullwidth">
-        <div class="gridhost histogramheader @(priceGroup.Key.Day == DateTime.Now.Day && priceGroup.Key != DateTime.Now.Floor() ? "currentday" : string.Empty) @(priceGroup.Key == DateTime.Now.Floor() ? "currenthour" : string.Empty)">
+    <div class="histogramblock fullheight fullwidth leftborder">
+        <div class="gridhost histogramheader  @(priceGroup.Key.Day == DateTime.Now.Day && priceGroup.Key != DateTime.Now.Floor() ? "currentday" : string.Empty) @(priceGroup.Key == DateTime.Now.Floor() ? "currenthour" : string.Empty)">
             <div class="fullwidth gridnumber">
                 @(priceGroup.Key.Hour)
             </div>
         </div>
-        <div class="histogramcontent leftborder @(priceGroup.Key.Day == DateTime.Now.Day && priceGroup.Key != DateTime.Now.Floor() ? "currentday" : string.Empty) @(priceGroup.Key == DateTime.Now.Floor() ? "currenthour" : string.Empty)">
+        <div class="histogramcontent @(priceGroup.Key.Day == DateTime.Now.Day && priceGroup.Key != DateTime.Now.Floor() ? "currentday" : string.Empty) @(priceGroup.Key == DateTime.Now.Floor() ? "currenthour" : string.Empty)">
             @foreach (var (time, price) in priceGroup)
             {
                 <HistogramBar Max=@Max Min=@Min Count=@priceGroup.Count() Price=@price Time=@time />
