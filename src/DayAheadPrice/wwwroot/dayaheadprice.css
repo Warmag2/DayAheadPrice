@@ -91,7 +91,7 @@ div.fullwidth {
 div.pageheader {
     font-size: min(6vh, 6vw);
     text-align: center;
-    height: 10vh;
+    max-height: 10vh;
 }
 
 div.pagecontent {

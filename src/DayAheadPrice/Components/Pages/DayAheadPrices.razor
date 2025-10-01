@@ -15,7 +15,6 @@
 
 @{
     var prices = _priceList?.GetPrices(_margin, _vat);
-    var printValue = prices?.TryGetValue(DateTime.Now.Floor(), out var value) == true ? value : 0m;
 }
 
 <script>
@@ -31,7 +30,7 @@
     </div>
 
     <div id="PriceHeader" class="fullwidth pageheader" onclick=messIt(event)>
-        @_priceString @($"(curr: {printValue.ToString("0.00")}c/kWh)")
+        @_priceString
     </div>
 
     @if (prices != null && prices.Any())
