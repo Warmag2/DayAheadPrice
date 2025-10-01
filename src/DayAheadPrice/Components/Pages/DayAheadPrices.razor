@@ -19,18 +19,18 @@
 }
 
 <script>
-    function setPriceData(event, priceString, timeString) {
+    function setPriceData(_, priceString, timeString) {
         document.getElementById("TimeHeader").innerHTML = timeString;
         document.getElementById("PriceHeader").innerHTML = priceString;
     }
 </script>
 
 <div class="page">
-    <div Id="TimeHeader" class="fullwidth histogramheader" onclick=messIt(event)>
+    <div Id="TimeHeader" class="fullwidth pageheader" onclick=messIt(event)>
         @_timeString
     </div>
 
-    <div id="PriceHeader" class="fullwidth histogramheader" onclick=messIt(event)>
+    <div id="PriceHeader" class="fullwidth pageheader" onclick=messIt(event)>
         @_priceString @($"(curr: {printValue.ToString("0.00")}c/kWh)")
     </div>
 
@@ -43,13 +43,8 @@
         var ceilPrice = (int)Math.Ceiling(maxPrice / gridScale) * gridScale;
         var floorPrice = (int)Math.Floor(minPrice / gridScale) * gridScale;
 
-        <div class="histogramcontent">
-            <HistogramBar Max=@ceilPrice Min=@floorPrice Count=@prices.Count Price=0m Time=@DateTime.MinValue />
-
-            @foreach (var price in prices)
-            {
-                <HistogramBar Max=@ceilPrice Min=@floorPrice Count=@prices.Count Price=@price.Value Time=@price.Key PriceCallback=@PriceCallback TimeCallback=@TimeCallback />
-            }
+        <div class="pagecontent">
+            <Histogram Max=@ceilPrice Min=@floorPrice Prices=@prices />
         </div>
     }
     else

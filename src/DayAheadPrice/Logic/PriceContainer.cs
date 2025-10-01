@@ -86,12 +86,12 @@ public class PriceContainer
         // Only accept EUR
         foreach (var period in result.TimeSeries.Where(t => t.Currency == "EUR").SelectMany(t => t.Periods))
         {
-            // Only read 60min resolution for now
-            if (period.Resolution == "PT60M")
+            // Only read 15min resolution for this on
+            if (period.Resolution == "PT15M")
             {
                 foreach (var point in period.Points)
                 {
-                    var timePosition = period.TimeInterval.StartDateTime.AddHours(point.Position - 1);
+                    var timePosition = period.TimeInterval.StartDateTime.AddMinutes(15 * (point.Position - 1));
 
                     if (timePosition >= now.AddHours(-12) && timePosition < nextDayEnd)
                     {
@@ -175,7 +175,7 @@ public class PriceContainer
             DtdProcessing = DtdProcessing.Parse
         };
 
-        var xmlReader = XmlReader.Create(response.Content.ReadAsStream(), xmlReaderSettings);
+        var xmlReader = XmlReader.Create(await response.Content.ReadAsStreamAsync(), xmlReaderSettings);
 
         return MakePriceListFromResult(serializer.Deserialize(xmlReader) as Publication_MarketDocument ?? throw new InvalidDataException("Could not correctly deserialize data."));
     }

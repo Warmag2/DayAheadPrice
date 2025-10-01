@@ -17,7 +17,7 @@
     var eventToRun = $"setPriceData(event, '{GetPriceString()}', '{GetTimeString()}')";
 }
 
-<div class="fullheight histogrambar @(Time.Day == DateTime.Now.Day && Time != DateTime.Now.Floor() ? "currentday" : string.Empty) @(Time == DateTime.Now.Floor() ? "currenthour" : string.Empty)" style=@($"width:{(99.5/(Count+1)).ToString("#.###")}%") onmouseenter=@(eventToRun) ontouchenter=@(eventToRun)>
+<div class="fullheight histogrambar @(Time != DateTime.MinValue && Time.Day == DateTime.Now.Day && Time.Floor() != DateTime.Now.Floor() ? "currentday" : string.Empty) @(Time.Floor() == DateTime.Now.Floor() ? "currenthour" : string.Empty)" style=@($"width:{(Time == DateTime.MinValue ? 100 : 100/Count).ToString("#.###")}%") onmouseenter=@(eventToRun) ontouchenter=@(eventToRun)>
     @if (Time == DateTime.MinValue)
     {
         @for (int ii = 0; ii < gridLines; ii++)
@@ -33,34 +33,19 @@
             // Over zero
             @for (int ii = 0; ii < emptyGridLines; ii++)
             {
-                <div class="noprice" style=@($"height:{gridHeightPercent.ToString("#.###")}%")>
-                    @if (ii == 0)
-                    {
-                        @(Time.Hour)
-                    }
-                </div>
+                <div class="noprice" style=@($"height:{gridHeightPercent.ToString("#.###")}%") />
             }
 
             // Mixed block, may be height zero
             @if (mixedBlockVisible)
             {
-                <div class="noprice" style=@($"height:{intersectionEmptyFraction.ToString("#.###")}%")>
-                    @if (emptyGridLines == 0)
-                    {
-                        @(Time.Hour)
-                    }
-                </div>
+                <div class="noprice" style=@($"height:{intersectionEmptyFraction.ToString("#.###")}%") />
             }
 
             // Full bar to zero
             @if (barVisible)
             {
-                <div class="price" style=@($"height:{barHeightPercent.ToString("#.###")}%")>
-                    @if (!mixedBlockVisible && emptyGridLines == 0)
-                    {
-                        @(Time.Hour)
-                    }
-                </div>
+                <div class="price" style=@($"height:{barHeightPercent.ToString("#.###")}%") />
             }
 
             // Pad under zero
@@ -74,12 +59,7 @@
             // Pad over zero
             @for (int ii = 0; ii < Max / gridScale; ii++)
             {
-                <div class="noprice" style=@($"height:{gridHeightPercent.ToString("#.###")}%")>
-                    @if (ii == 0)
-                    {
-                        @(Time.Hour)
-                    }
-                </div>
+                <div class="noprice" style=@($"height:{gridHeightPercent.ToString("#.###")}%") />
             }
 
             // Under zero
@@ -119,38 +99,6 @@
     [Parameter]
     public DateTime Time { get; set; }
 
-    [Parameter]
-    public EventCallback<decimal> PriceCallback { get; set; }
-
-    [Parameter]
-    public EventCallback<DateTime> TimeCallback { get; set; }
-
-    /*private async Task OnBarHover(MouseEventArgs e)
-    {
-    await JS.InvokeAsync<string>("setPriceData", [e, GetPriceString(), GetTimeString()]);
-
-    //HoverAct();
-    }
-
-    private async Task OnBarTouch(TouchEventArgs e)
-    {
-    await JS.InvokeAsync<string>("setPriceData", [e, GetPriceString(), GetTimeString()]);
-
-    //HoverAct();
-    //onclick=setPriceData(event) onmouseover=setPriceData(event) ontouchstart=setPriceData(event)
-    }
-
-    private void HoverAct()
-    {
-    if (Time == DateTime.MinValue)
-    {
-        return;
-    }
-
-    PriceCallback.InvokeAsync(Price);
-    TimeCallback.InvokeAsync(Time);
-    }*/
-
     private string GetPriceString()
     {
         return $"{Price.ToString("0.00")}c/kWh";
@@ -158,6 +106,6 @@
 
     private string GetTimeString()
     {
-        return $"{Time.Month.ToString("00")}-{Time.Day.ToString("00")} \u23F2{Time.Hour.ToString("00")} \u2014 {(Time.Hour + 1).ToString("00")}";
+        return $"{Time.Month.ToString("00")}-{Time.Day.ToString("00")} \u23F2 {Time.Hour.ToString("00")}:{Time.Minute.ToString("00")} \u2014 {(Time.Hour).ToString("00")}:{(Time.Minute+14).ToString("00")}";
     }
 }

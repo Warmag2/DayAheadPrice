@@ -88,21 +88,20 @@ div.fullwidth {
     width: 100%;
 }
 
-div.histogramheader {
+div.pageheader {
     font-size: min(7vh, 5vw);
     text-align: center;
     max-height: 8vh;
 }
 
-div.histogramcontent {
+div.pagecontent {
     display: flex;
     flex-direction: row;
     width: 99%;
     margin-left: auto;
     margin-right: auto;
     flex-grow: 1;
-    margin-top: 1vh;
-    box-shadow: 0px -1px 0px 0px darkslategray;
+    margin-top: 2rem;
 }
 
 div.currenthour {
@@ -113,9 +112,35 @@ div.currentday {
     background: #D8D8D8;
 }
 
+div.histogramblock {
+    flex-direction: row;
+}
+
+div.leftborder {
+    border-left: 1px solid darkslategray;
+}
+
+div.histogramheader {
+    text-align: center;
+    border: none;
+    font-size: 1.5vw;
+    font-weight: bold;
+    box-shadow: inset 0px -1px 0px 0px darkslategray;
+}
+
+div.histogramcontent {
+    text-align: center;
+    flex-direction: column;
+    border: none;
+    height: 70vh;
+    font-size: 1.5vw;
+    font-weight: bold;
+}
+
 div.histogrambar {
     text-align: center;
     border: none;
+    flex-direction: row;
     float: left;
     font-size: 1.5vw;
     font-weight: bold;

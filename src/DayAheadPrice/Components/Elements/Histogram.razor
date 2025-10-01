@@ -1,0 +1,37 @@
+﻿@using DayAheadPrice.Extensions
+@inherits ComponentBase
+
+<div class="histogramblock fullwidth">
+    <div class="histogramheader">
+        c
+    </div>
+    <div class="histogramcontent">
+        <HistogramBar Max=@Max Min=@Min Count=1 Price=0m Time=@DateTime.MinValue />
+    </div>
+</div>
+
+@foreach (var priceGroup in Prices.GroupBy(p => new DateTime(p.Key.Year, p.Key.Month, p.Key.Day, p.Key.Hour, 0, 0, DateTimeKind.Local)))
+{
+    <div class="histogramblock leftborder fullwidth">
+        <div class="histogramheader @(priceGroup.Key.Day == DateTime.Now.Day && priceGroup.Key != DateTime.Now.Floor() ? "currentday" : string.Empty) @(priceGroup.Key == DateTime.Now.Floor() ? "currenthour" : string.Empty)">
+            @(priceGroup.Key.Hour)
+        </div>
+        <div class="histogramcontent leftborder @(priceGroup.Key.Day == DateTime.Now.Day && priceGroup.Key != DateTime.Now.Floor() ? "currentday" : string.Empty) @(priceGroup.Key == DateTime.Now.Floor() ? "currenthour" : string.Empty)">
+            @foreach (var (time, price) in priceGroup)
+            {
+                <HistogramBar Max=@Max Min=@Min Count=@priceGroup.Count() Price=@price Time=@time />
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public decimal Max { get; set; }
+
+    [Parameter]
+    public decimal Min { get; set; }
+
+    [Parameter]
+    public SortedList<DateTime, decimal> Prices { get; set; } = [];
+}
