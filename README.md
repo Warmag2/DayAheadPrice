@@ -13,9 +13,8 @@ Then, edit src/DayAheadPrice/appsettings.json:
 * PricingOptions contains options for modifying the base price. Set the margin and VAT so that they are correct as per your country and electricity seller.
 * EndpointOptions contains options related to the ENTSO-E endpoint used. BaseURL is the URL of the API, and the Domain contains the string for the pricing domain that electricity prices are asked from. The defaults present apply for Finland.
 
-Finally, type:
+Finally, in the root of the repository, type:
 
-    cd infra/
     ./refresh.sh
 
 Done.
