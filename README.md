@@ -21,4 +21,4 @@ Done.
 
 NOTE: This service is unsecured and the default configuration does not expect to use any certificates.
       You can fix this by altering the appsettings.conf and adding a Kestrel block which requires
-      certificates, but I recommend using a virtual host and reverse proxy in NGINX or Apache
+      certificates, but I recommend using a virtual host and reverse proxy in NGINX or Apache.
