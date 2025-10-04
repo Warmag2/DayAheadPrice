@@ -1,4 +1,5 @@
-﻿using System.Xml;
+﻿using System.Drawing;
+using System.Xml;
 using System.Xml.Serialization;
 using DayAheadPrice.Entities;
 using DayAheadPrice.Extensions;
@@ -81,7 +82,10 @@ public class PriceContainer
     {
         var priceList = new PriceList();
         var now = DateTime.Now.Floor();
-        var nextDayEnd = new DateTime(now.Year, now.Month, now.Day, 0, 0, 0, DateTimeKind.Local).AddDays(2);
+        var min = now.AddHours(-12);
+        var max = new DateTime(now.Year, now.Month, now.Day, 0, 0, 0, DateTimeKind.Local).AddDays(2);
+
+        var prices = new SortedList<DateTime, decimal?>();
 
         // Only accept EUR
         foreach (var period in result.TimeSeries.Where(t => t.Currency == "EUR").SelectMany(t => t.Periods))
@@ -89,26 +93,51 @@ public class PriceContainer
             // Only read 15min resolution for this on
             if (period.Resolution == "PT15M")
             {
+                for (var timePosition = period.TimeInterval.StartDateTime; timePosition < period.TimeInterval.EndDateTime; timePosition += TimeSpan.FromMinutes(15))
+                {
+                    prices.Add(timePosition, null);
+                }
+
                 foreach (var point in period.Points)
                 {
-                    var timePosition = period.TimeInterval.StartDateTime.AddMinutes(15 * (point.Position - 1));
+                    prices[period.TimeInterval.StartDateTime.AddMinutes(15 * (point.Position - 1))] = ParsePrice(point.Price) / 10;
+                }
 
-                    if (timePosition >= now.AddHours(-12) && timePosition < nextDayEnd)
+
+                // Initialize the actual price list and fill any empty spots with their previous values
+                var lastPrice = 0m;
+
+                foreach (var point in prices)
+                {
+                    if (!point.Value.HasValue)
                     {
-                        if (!priceList.Prices.ContainsKey(timePosition))
-                        {
-                            priceList.Prices.Add(timePosition, ParsePrice(point.Price) / 10);
-                        }
-                        else
-                        {
-                            _logger.LogError("Trying to add duplicate value for time {Time}. Existing: {OldPrice}, New: {NewPrice}", timePosition, priceList.Prices[timePosition], ParsePrice(point.Price) / 10);
-                        }
+                        AddToSeries(min, max, priceList, point.Key, lastPrice);
+                    }
+                    else
+                    {
+                        lastPrice = point.Value.Value;
+                        AddToSeries(min, max, priceList, point.Key, lastPrice);
                     }
                 }
             }
         }
 
         return priceList;
+    }
+
+    private void AddToSeries(DateTime min, DateTime max, PriceList priceList, DateTime timePosition, decimal price)
+    {
+        if (timePosition >= min && timePosition < max)
+        {
+            if (!priceList.Prices.ContainsKey(timePosition))
+            {
+                priceList.Prices.Add(timePosition, price);
+            }
+            else
+            {
+                _logger.LogError("Trying to add duplicate value for time {Time}. Existing: {OldPrice}, New: {NewPrice}", timePosition, priceList.Prices[timePosition], price);
+            }
+        }
     }
 
     /// <summary>
@@ -165,7 +194,7 @@ public class PriceContainer
                 })
         };
 
-        //var response = await httpClient.GetAsync($"https://web-api.tp.entsoe.eu/api?securityToken={_endpointOptions.ApiKey}&documentType={_endpointOptions.DocumentType}&outBiddingZone_Domain={_endpointOptions.Domain}&periodStart={GetDateTimeFormatString(DateTime.Now.AddDays(-1).Floor())}&periodEnd={GetDateTimeFormatString(DateTime.Now.AddDays(1).Floor())}");
+        //var response1 = await httpClient.GetAsync($"https://web-api.tp.entsoe.eu/api?securityToken={_endpointOptions.ApiKey}&documentType={_endpointOptions.DocumentType}&outBiddingZone_Domain={_endpointOptions.Domain}&periodStart={GetDateTimeFormatString(DateTime.Now.AddDays(-1).Floor())}&periodEnd={GetDateTimeFormatString(DateTime.Now.AddDays(1).Floor())}");
 
         var response = await httpClient.SendAsync(request);
 
@@ -174,6 +203,8 @@ public class PriceContainer
         {
             DtdProcessing = DtdProcessing.Parse
         };
+
+        var text = await response.Content.ReadAsStringAsync();
 
         var xmlReader = XmlReader.Create(await response.Content.ReadAsStreamAsync(), xmlReaderSettings);
 
