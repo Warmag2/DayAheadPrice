@@ -87,39 +87,46 @@ public class PriceContainer
 
         var prices = new SortedList<DateTime, decimal?>();
 
-        // Only accept EUR
-        foreach (var period in result.TimeSeries.Where(t => t.Currency == "EUR").SelectMany(t => t.Periods))
+        try
         {
-            // Only read 15min resolution for this on
-            if (period.Resolution == "PT15M")
+            // Only accept EUR
+            foreach (var period in result.TimeSeries.Where(t => t.Currency == "EUR").SelectMany(t => t.Periods))
             {
-                for (var timePosition = period.TimeInterval.StartDateTime; timePosition < period.TimeInterval.EndDateTime; timePosition += TimeSpan.FromMinutes(15))
+                // Only read 15min resolution for this on
+                if (period.Resolution == "PT15M")
                 {
-                    prices.Add(timePosition, null);
-                }
-
-                foreach (var point in period.Points)
-                {
-                    prices[period.TimeInterval.StartDateTime.AddMinutes(15 * (point.Position - 1))] = ParsePrice(point.Price) / 10;
-                }
-
-
-                // Initialize the actual price list and fill any empty spots with their previous values
-                var lastPrice = 0m;
-
-                foreach (var point in prices)
-                {
-                    if (!point.Value.HasValue)
+                    for (var timePosition = period.TimeInterval.StartDateTime; timePosition < period.TimeInterval.EndDateTime; timePosition += TimeSpan.FromMinutes(15))
                     {
-                        AddToSeries(min, max, priceList, point.Key, lastPrice);
+                        prices.TryAdd(timePosition, null);
                     }
-                    else
+
+                    foreach (var point in period.Points)
                     {
-                        lastPrice = point.Value.Value;
-                        AddToSeries(min, max, priceList, point.Key, lastPrice);
+                        prices[period.TimeInterval.StartDateTime.AddMinutes(15 * (point.Position - 1))] = ParsePrice(point.Price) / 10;
+                    }
+
+
+                    // Initialize the actual price list and fill any empty spots with their previous values
+                    var lastPrice = 0m;
+
+                    foreach (var point in prices)
+                    {
+                        if (!point.Value.HasValue)
+                        {
+                            AddToSeries(min, max, priceList, point.Key, lastPrice);
+                        }
+                        else
+                        {
+                            lastPrice = point.Value.Value;
+                            AddToSeries(min, max, priceList, point.Key, lastPrice);
+                        }
                     }
                 }
             }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unknown exception while fetching price list: {Message}", ex.Message);
         }
 
         return priceList;
