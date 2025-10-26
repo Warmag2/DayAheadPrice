@@ -102,7 +102,15 @@ public class PriceContainer
 
                     foreach (var point in period.Points)
                     {
-                        prices[period.TimeInterval.StartDateTime.AddMinutes(15 * (point.Position - 1))] = ParsePrice(point.Price) / 10;
+                        var price = ParsePrice(point.Price) / 10;
+                        var location = period.TimeInterval.StartDateTime.AddMinutes(15 * (point.Position - 1));
+
+                        if (prices.ContainsKey(location) && prices[location].HasValue)
+                        {
+                            _logger.LogError("Attempting to add price where it already exists ({Time}): {Old}, {New}", location, prices[location], price);
+                        }
+
+                        prices[location] = price;
                     }
 
 
