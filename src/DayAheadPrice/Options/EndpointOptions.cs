@@ -48,4 +48,9 @@ public class EndpointOptions
     /// Use default if you do not know what this means.
     /// </remarks>
     public string ProcessType { get; set; } = "A01";
+
+    /// <summary>
+    /// Use test data instead of making API calls.
+    /// </summary>
+    public bool UseTestData { get; set; } = false;
 }
