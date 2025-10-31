@@ -6,7 +6,7 @@ namespace DayAheadPrice.Entities;
 /// Entso-e period entity.
 /// </summary>
 [Serializable]
-internal class EntsoePeriod
+public class EntsoePeriod
 {
     /// <summary>
     /// The start and end times for this series.

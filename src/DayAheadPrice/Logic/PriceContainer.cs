@@ -144,7 +144,10 @@ internal class PriceContainer
         {
             if (priceList.Prices.TryGetValue(timePosition, out var oldPrice))
             {
-                _logger.LogError("Trying to add duplicate value for time {Time}. Existing: {OldPrice}, New: {NewPrice}", timePosition, oldPrice, price);
+                if (oldPrice != price)
+                {
+                    _logger.LogError("Trying to add duplicate differing value for time {Time}. Existing: {OldPrice}, New: {NewPrice}", timePosition, oldPrice, price);
+                }
             }
             else
             {

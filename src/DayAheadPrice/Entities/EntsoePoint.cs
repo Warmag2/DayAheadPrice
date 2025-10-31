@@ -6,7 +6,7 @@ namespace DayAheadPrice.Entities;
 /// Entso-e data point entity.
 /// </summary>
 [Serializable]
-internal class EntsoePoint
+public class EntsoePoint
 {
     /// <summary>
     /// The numeric position index.

@@ -10,7 +10,7 @@ namespace DayAheadPrice.Entities;
 [Serializable]
 [XmlType(AnonymousType = true, Namespace = "urn:iec62325.351:tc57wg16:451-3:publicationdocument:7:3")]
 [XmlRoot(Namespace = "urn:iec62325.351:tc57wg16:451-3:publicationdocument:7:3", IsNullable = false)]
-internal class Publication_MarketDocument
+public class Publication_MarketDocument
 {
     /// <summary>
     /// The list time series for the ENTSO-E API result.
