@@ -3,7 +3,7 @@
 /// <summary>
 /// Configuration for electricity pricing.
 /// </summary>
-public class PricingOptions
+internal class PricingOptions
 {
     /// <summary>
     /// Margin in euro cents / kWh.

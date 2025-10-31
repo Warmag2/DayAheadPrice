@@ -1,5 +1,4 @@
-﻿using System.Drawing;
-using System.Xml;
+﻿using System.Xml;
 using System.Xml.Serialization;
 using DayAheadPrice.Entities;
 using DayAheadPrice.Extensions;
@@ -11,7 +10,7 @@ namespace DayAheadPrice.Logic;
 /// <summary>
 /// Container and fetcher for electricity price data.
 /// </summary>
-public class PriceContainer
+internal class PriceContainer
 {
     private readonly Random _rand = new();
     private readonly EndpointOptions _endpointOptions;
@@ -42,7 +41,7 @@ public class PriceContainer
         {
             try
             {
-                _logger.LogInformation("Data timestamp ({last}) is older than current hour ({current}). Making new request.", _lastUpdate, currentTimeStamp);
+                _logger.LogInformation("Data timestamp ({Last}) is older than current hour ({Current}). Making new request.", _lastUpdate, currentTimeStamp);
 
                 _currentPriceList = await MakePriceRequestAsync();
                 _lastUpdate = currentTimeStamp;
@@ -105,14 +104,13 @@ public class PriceContainer
                         var price = ParsePrice(point.Price) / 10;
                         var location = period.TimeInterval.StartDateTime.AddMinutes(15 * (point.Position - 1));
 
-                        if (prices.ContainsKey(location) && prices[location].HasValue)
+                        if (prices.TryGetValue(location, out var oldPrice) && oldPrice.HasValue)
                         {
-                            _logger.LogError("Attempting to add price where it already exists ({Time}): {Old}, {New}", location, prices[location], price);
+                            _logger.LogError("Attempting to add price where it already exists ({Time}): {Old}, {New}", location, oldPrice, price);
                         }
 
                         prices[location] = price;
                     }
-
 
                     // Initialize the actual price list and fill any empty spots with their previous values
                     var lastPrice = 0m;
@@ -144,13 +142,13 @@ public class PriceContainer
     {
         if (timePosition >= min && timePosition < max)
         {
-            if (!priceList.Prices.ContainsKey(timePosition))
+            if (priceList.Prices.TryGetValue(timePosition, out var oldPrice))
             {
-                priceList.Prices.Add(timePosition, price);
+                _logger.LogError("Trying to add duplicate value for time {Time}. Existing: {OldPrice}, New: {NewPrice}", timePosition, oldPrice, price);
             }
             else
             {
-                _logger.LogError("Trying to add duplicate value for time {Time}. Existing: {OldPrice}, New: {NewPrice}", timePosition, priceList.Prices[timePosition], price);
+                priceList.Prices.Add(timePosition, price);
             }
         }
     }
@@ -191,7 +189,7 @@ public class PriceContainer
         }
 
         using HttpClient httpClient = new();
-        httpClient.BaseAddress = new Uri(_endpointOptions.BaseUrl);
+        httpClient.BaseAddress = new Uri(_endpointOptions.ApiAddress);
         var request = new HttpRequestMessage(HttpMethod.Get, "api")
         {
             Content = new FormUrlEncodedContent(
@@ -219,7 +217,8 @@ public class PriceContainer
             DtdProcessing = DtdProcessing.Parse
         };
 
-        var text = await response.Content.ReadAsStringAsync();
+        // TODO: Remove debug line at some point
+        //var text = await response.Content.ReadAsStringAsync();
 
         var xmlReader = XmlReader.Create(await response.Content.ReadAsStreamAsync(), xmlReaderSettings);
 

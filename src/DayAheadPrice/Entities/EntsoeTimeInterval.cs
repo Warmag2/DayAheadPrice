@@ -7,7 +7,7 @@ namespace DayAheadPrice.Entities;
 /// Time interval for ENTSO-E import data.
 /// </summary>
 [Serializable]
-public class EntsoeTimeInterval
+internal class EntsoeTimeInterval
 {
     private string _startField = string.Empty;
 
@@ -33,7 +33,7 @@ public class EntsoeTimeInterval
         {
             _startField = value;
 
-            CultureInfo us = new CultureInfo("en-US");
+            var us = new CultureInfo("en-US");
             StartDateTime = DateTime.Parse(value, us);
         }
     }
@@ -48,7 +48,7 @@ public class EntsoeTimeInterval
         {
             _endField = value;
 
-            CultureInfo us = new CultureInfo("en-US");
+            var us = new CultureInfo("en-US");
             EndDateTime = DateTime.Parse(value, us);
         }
     }

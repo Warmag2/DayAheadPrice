@@ -9,7 +9,7 @@ namespace DayAheadPrice;
 /// <summary>
 /// Main program class.
 /// </summary>
-public static class Program
+internal static class Program
 {
     /// <summary>
     /// Main program entrypoint.

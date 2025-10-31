@@ -70,18 +70,6 @@
     private string _timeString = string.Empty;
     private string _priceString = string.Empty;
 
-    private void PriceCallback(decimal input)
-    {
-        SetPriceString(input);
-        //StateHasChanged();
-    }
-
-    private void TimeCallback(DateTime input)
-    {
-        SetTimeString(input);
-        //StateHasChanged();
-    }
-
     private void SetPriceString(decimal input)
     {
         _priceString = $"{input.ToString("0.00")}c/kWh";

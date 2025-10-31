@@ -4,12 +4,12 @@
 /// Entity which contains the price list.
 /// </summary>
 [Serializable]
-public class PriceList
+internal class PriceList
 {
     /// <summary>
     /// List of prices per hour.
     /// </summary>
-    public SortedList<DateTime, decimal> Prices { get; set; } = new();
+    public SortedList<DateTime, decimal> Prices { get; set; } = [];
 
     /// <summary>
     /// Gets electricity prices adjusted by VAT and operator margin.
@@ -19,7 +19,7 @@ public class PriceList
     /// <returns>Sorted list with time and electricity price values (c/kWh).</returns>
     public SortedList<DateTime, decimal> GetPrices(decimal margin, decimal vat)
     {
-        var adjustedPrices = new SortedList<DateTime, decimal>();
+        SortedList<DateTime, decimal> adjustedPrices = [];
 
         foreach (var price in Prices)
         {
