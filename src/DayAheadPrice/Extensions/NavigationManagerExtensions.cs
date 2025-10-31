@@ -6,7 +6,7 @@ namespace DayAheadPrice.Extensions;
 /// <summary>
 /// Extensions for navigation mangager.
 /// </summary>
-public static class NavigationManagerExtensions
+internal static class NavigationManagerExtensions
 {
     /// <summary>
     /// Try to get a query parameter.

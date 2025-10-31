@@ -3,12 +3,12 @@
 /// <summary>
 /// Options for fetching data from the ensoe API.
 /// </summary>
-public class EndpointOptions
+internal class EndpointOptions
 {
     /// <summary>
     /// API root URL.
     /// </summary>
-    public string BaseUrl { get; set; } = string.Empty;
+    public string ApiAddress { get; set; } = string.Empty;
 
     /// <summary>
     /// API key.
@@ -39,7 +39,7 @@ public class EndpointOptions
     /// <summary>
     /// Generate test data instead of making API calls.
     /// </summary>
-    public bool GenerateTestData { get; set; } = false;
+    public bool GenerateTestData { get; set; }
 
     /// <summary>
     /// Process type.

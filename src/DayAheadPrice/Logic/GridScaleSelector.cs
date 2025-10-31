@@ -3,7 +3,7 @@ namespace DayAheadPrice.Logic;
 /// <summary>
 /// Selects grid scales based on maximum and minimum value.
 /// </summary>
-public static class GridScaleSelector
+internal static class GridScaleSelector
 {
     /// <summary>
     /// Get the grid scale for the given min and max values.
