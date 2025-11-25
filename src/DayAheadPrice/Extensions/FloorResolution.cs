@@ -3,6 +3,7 @@
 public enum FloorResolution
 {
     Minute,
+    Quarter,
     Hour,
     Day
 }

@@ -16,6 +16,23 @@ internal static class DateTimeExtensions
         {
             case FloorResolution.Minute:
                 return new DateTime(dateTime.Year, dateTime.Month, dateTime.Day, dateTime.Hour, dateTime.Minute, 0, DateTimeKind.Local);
+            case FloorResolution.Quarter:
+                var minute = 0;
+
+                if (dateTime.Minute >= 45)
+                {
+                    minute = 45;
+                }
+                else if (dateTime.Minute >= 30)
+                {
+                    minute = 30;
+                }
+                else if (dateTime.Minute >= 15)
+                {
+                    minute = 15;
+                }
+
+                return new DateTime(dateTime.Year, dateTime.Month, dateTime.Day, dateTime.Hour, minute, 0, DateTimeKind.Local);
             case FloorResolution.Hour:
                 return new DateTime(dateTime.Year, dateTime.Month, dateTime.Day, dateTime.Hour, 0, 0, DateTimeKind.Local);
             case FloorResolution.Day:

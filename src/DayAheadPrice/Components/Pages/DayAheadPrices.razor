@@ -77,7 +77,8 @@
 
     private void SetTimeString(DateTime input)
     {
-        _timeString = $"{input.Month.ToString("00")}-{input.Day.ToString("00")} \u23F2{input.Hour.ToString("00")} \u2014 {(input.Hour + 1).ToString("00")}";
+        _timeString = $"{input.Month.ToString("00")}-{input.Day.ToString("00")} \u23F2 {input.Hour.ToString("00")}:{input.Minute.ToString("00")} \u2014 {(input.Hour).ToString("00")}:{(input.Minute + 14).ToString("00")}";
+        //_timeString = $"{input.Month.ToString("00")}-{input.Day.ToString("00")} \u23F2 {input.Hour.ToString("00")} \u2014 {(input.Hour + 1).ToString("00")}";
     }
 
     protected override async Task OnInitializedAsync()
@@ -105,9 +106,9 @@
         if (_priceList != null)
         {
             var prices = _priceList?.GetPrices(_margin, _vat);
-            var printValue = prices?.TryGetValue(DateTime.Now.Floor(), out var value) == true ? value : 0m;
+            var printValue = prices?.TryGetValue(DateTime.Now.Floor(FloorResolution.Quarter), out var value) == true ? value : 0m;
             SetPriceString(printValue);
-            SetTimeString(DateTime.Now.Floor());
+            SetTimeString(DateTime.Now.Floor(FloorResolution.Quarter));
         }
     }
 }
