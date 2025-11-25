@@ -16,15 +16,7 @@ internal class EndpointOptions
     public string ApiKey { get; set; } = string.Empty;
 
     /// <summary>
-    /// Business type.
-    /// </summary>
-    /// <remarks>
-    /// Use default if you do not know what this means.
-    /// </remarks>
-    public string BusinessType { get; set; } = "A62";
-
-    /// <summary>
-    /// Domain type to ask.
+    /// Docynebt type to ask.
     /// </summary>
     /// <remarks>
     /// Use default if you do not know what this means.
@@ -47,10 +39,5 @@ internal class EndpointOptions
     /// <remarks>
     /// Use default if you do not know what this means.
     /// </remarks>
-    public string ProcessType { get; set; } = "A01";
-
-    /// <summary>
-    /// Use test data instead of making API calls.
-    /// </summary>
-    public bool UseTestData { get; set; } = false;
+    public string MarketAgreementType { get; set; } = "A01";
 }

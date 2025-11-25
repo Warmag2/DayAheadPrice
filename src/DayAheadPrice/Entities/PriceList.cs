@@ -28,4 +28,8 @@ internal class PriceList
 
         return adjustedPrices;
     }
+
+    public DateTime DateBegin => Prices.Count > 0 ? Prices.Keys.Min() : DateTime.MinValue;
+
+    public DateTime DateEnd => Prices.Count > 0 ? Prices.Keys.Max() : DateTime.MinValue;
 }

@@ -35,7 +35,13 @@ internal class PriceContainer
     /// <returns>Current price list.</returns>
     public async Task<PriceList?> GetPriceListAsync()
     {
-        var currentTimeStamp = DateTime.Now.Floor();
+        var currentTimeStamp = DateTime.UtcNow.Floor();
+
+        // Early exit so we don't spam the API
+        if (currentTimeStamp + TimeSpan.FromHours(12) < _currentPriceList.DateEnd)
+        {
+            return _currentPriceList;
+        }
 
         if (currentTimeStamp > _lastUpdate)
         {
@@ -193,26 +199,21 @@ internal class PriceContainer
 
         using HttpClient httpClient = new();
         httpClient.BaseAddress = new Uri(_endpointOptions.ApiAddress);
-        var request = new HttpRequestMessage(HttpMethod.Get, "api")
-        {
-            Content = new FormUrlEncodedContent(
-                new Dictionary<string, string>
-                {
-                    { "periodStart", GetDateTimeFormatString(DateTime.Now.AddDays(-1).Floor()) },
-                    { "periodEnd", GetDateTimeFormatString(DateTime.Now.AddDays(1).Floor()) },
-                    { "securityToken", _endpointOptions.ApiKey },
-                    { "businessType", _endpointOptions.BusinessType },
-                    { "documentType", _endpointOptions.DocumentType },
-                    { "outBiddingZone_Domain", _endpointOptions.Domain },
-                    { "processType", _endpointOptions.ProcessType },
-                    { "In_Domain", _endpointOptions.Domain },
-                    { "Out_Domain", _endpointOptions.Domain }
-                })
-        };
+        var url = Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
+            "api",
+            new Dictionary<string, string?>
+            {
+                { "periodStart", GetDateTimeFormatString(DateTime.Now.AddDays(-1).Floor()) },
+                { "periodEnd", GetDateTimeFormatString(DateTime.Now.AddDays(1).Floor()) },
+                { "securityToken", _endpointOptions.ApiKey },
+                { "documentType", _endpointOptions.DocumentType },
+                { "In_Domain", _endpointOptions.Domain },
+                { "Out_Domain", _endpointOptions.Domain }
+            });
+        var response = await httpClient.GetAsync(url);
 
-        //var response1 = await httpClient.GetAsync($"https://web-api.tp.entsoe.eu/api?securityToken={_endpointOptions.ApiKey}&documentType={_endpointOptions.DocumentType}&outBiddingZone_Domain={_endpointOptions.Domain}&periodStart={GetDateTimeFormatString(DateTime.Now.AddDays(-1).Floor())}&periodEnd={GetDateTimeFormatString(DateTime.Now.AddDays(1).Floor())}");
-
-        var response = await httpClient.SendAsync(request);
+        // Debug line for sending raw query
+        //var response = await httpClient.GetAsync($"https://web-api.tp.entsoe.eu/api?securityToken={_endpointOptions.ApiKey}&documentType={_endpointOptions.DocumentType}&In_Domain={_endpointOptions.Domain}&Out_Domain={_endpointOptions.Domain}&periodStart={GetDateTimeFormatString(DateTime.Now.AddDays(-1).Floor())}&periodEnd={GetDateTimeFormatString(DateTime.Now.AddDays(1).Floor())}"); //202511010000&periodEnd=202511012345");
 
         var serializer = new XmlSerializer(typeof(Publication_MarketDocument));
         var xmlReaderSettings = new XmlReaderSettings()
@@ -220,7 +221,7 @@ internal class PriceContainer
             DtdProcessing = DtdProcessing.Parse
         };
 
-        // TODO: Remove debug line at some point
+        // Debug line at seeing raw response
         //var text = await response.Content.ReadAsStringAsync();
 
         var xmlReader = XmlReader.Create(await response.Content.ReadAsStreamAsync(), xmlReaderSettings);
