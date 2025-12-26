@@ -1,4 +1,4 @@
 #!/bin/sh
-docker system prune --force
-docker volume prune --force
+docker system prune --all --force
+docker volume prune --all --force
 

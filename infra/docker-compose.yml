@@ -1,4 +1,5 @@
-services:  
+name: dayaheadprice
+services:
   # Day Ahead Price web app
   dayaheadprice:
     container_name: dayaheadprice
