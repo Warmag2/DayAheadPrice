@@ -1,4 +1,5 @@
-﻿using System.Xml;
+﻿using System.Globalization;
+using System.Xml;
 using System.Xml.Serialization;
 using DayAheadPrice.Entities;
 using DayAheadPrice.Extensions;
@@ -80,7 +81,7 @@ internal class PriceContainer
     /// <returns>The number as double.</returns>
     private static decimal ParsePrice(string price)
     {
-        return decimal.Parse(price.Replace(",", string.Empty));
+        return decimal.Parse(price, CultureInfo.InvariantCulture); //.Replace(",", string.Empty)
     }
 
     private PriceList MakePriceListFromResult(Publication_MarketDocument result)
@@ -186,7 +187,7 @@ internal class PriceContainer
         {
             var prices = new SortedList<DateTime, decimal>();
 
-            for (var date = DateTime.UtcNow.AddDays(-0.5).Floor(); date < DateTime.UtcNow.AddDays(0.5).Floor(); date += TimeSpan.FromHours(1))
+            for (var date = DateTime.UtcNow.AddDays(-1).Floor(); date < DateTime.UtcNow.AddDays(0.5).Floor(); date += TimeSpan.FromMinutes(15))
             {
                 prices.Add(date, 1m * (decimal)Math.Sin(2 * Math.PI * date.Hour / 24));
             }
