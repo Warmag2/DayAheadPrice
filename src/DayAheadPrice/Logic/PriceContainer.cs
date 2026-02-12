@@ -13,7 +13,6 @@ namespace DayAheadPrice.Logic;
 /// </summary>
 internal class PriceContainer
 {
-    private readonly Random _rand = new();
     private readonly EndpointOptions _endpointOptions;
     private readonly ILogger<PriceContainer> _logger;
     private DateTime _lastUpdate = DateTime.MinValue;
@@ -87,9 +86,6 @@ internal class PriceContainer
     private PriceList MakePriceListFromResult(Publication_MarketDocument result)
     {
         var priceList = new PriceList();
-        var now = DateTime.Now.Floor();
-        var min = now.AddHours(-12);
-        var max = new DateTime(now.Year, now.Month, now.Day, 0, 0, 0, DateTimeKind.Local).AddDays(2);
 
         var prices = new SortedList<DateTime, decimal?>();
 
@@ -126,12 +122,12 @@ internal class PriceContainer
                     {
                         if (!point.Value.HasValue)
                         {
-                            AddToSeries(min, max, priceList, point.Key, lastPrice);
+                            AddToSeries(priceList, point.Key, lastPrice);
                         }
                         else
                         {
                             lastPrice = point.Value.Value;
-                            AddToSeries(min, max, priceList, point.Key, lastPrice);
+                            AddToSeries(priceList, point.Key, lastPrice);
                         }
                     }
                 }
@@ -145,21 +141,18 @@ internal class PriceContainer
         return priceList;
     }
 
-    private void AddToSeries(DateTime min, DateTime max, PriceList priceList, DateTime timePosition, decimal price)
+    private void AddToSeries(PriceList priceList, DateTime timePosition, decimal price)
     {
-        if (timePosition >= min && timePosition < max)
+        if (priceList.Prices.TryGetValue(timePosition, out var oldPrice))
         {
-            if (priceList.Prices.TryGetValue(timePosition, out var oldPrice))
+            if (oldPrice != price)
             {
-                if (oldPrice != price)
-                {
-                    _logger.LogError("Trying to add duplicate differing value for time {Time}. Existing: {OldPrice}, New: {NewPrice}", timePosition, oldPrice, price);
-                }
+                _logger.LogError("Trying to add duplicate differing value for time {Time}. Existing: {OldPrice}, New: {NewPrice}", timePosition, oldPrice, price);
             }
-            else
-            {
-                priceList.Prices.Add(timePosition, price);
-            }
+        }
+        else
+        {
+            priceList.Prices.Add(timePosition, price);
         }
     }
 
@@ -167,35 +160,26 @@ internal class PriceContainer
     /// Price list for testing and when API is not available.
     /// </summary>
     /// <returns>A testing price list.</returns>
-    private PriceList GetTestPriceList()
+    private static PriceList GenerateTestPrices()
     {
-        var priceList = new PriceList();
+        var prices = new SortedList<DateTime, decimal>();
 
-        var startDateTime = DateTime.Now.Floor().AddHours(-24);
-
-        for (var time = startDateTime; time < startDateTime.AddHours(48); time += TimeSpan.FromHours(1))
+        for (var date = DateTime.UtcNow.AddDays(-1).Floor(); date < DateTime.UtcNow.AddDays(0.5).Floor(); date += TimeSpan.FromMinutes(15))
         {
-            priceList.Prices.Add(time, _rand.Next(1000) / 50.0m);
+            prices.Add(date, 1m * (decimal)Math.Sin(2 * Math.PI * date.Hour / 24));
         }
 
-        return priceList;
+        return new PriceList
+        {
+            Prices = prices
+        };
     }
 
     private async Task<PriceList> MakePriceRequestAsync()
     {
         if (_endpointOptions.GenerateTestData)
         {
-            var prices = new SortedList<DateTime, decimal>();
-
-            for (var date = DateTime.UtcNow.AddDays(-1).Floor(); date < DateTime.UtcNow.AddDays(0.5).Floor(); date += TimeSpan.FromMinutes(15))
-            {
-                prices.Add(date, 1m * (decimal)Math.Sin(2 * Math.PI * date.Hour / 24));
-            }
-
-            return new PriceList
-            {
-                Prices = prices
-            };
+            return GenerateTestPrices();
         }
 
         using HttpClient httpClient = new();

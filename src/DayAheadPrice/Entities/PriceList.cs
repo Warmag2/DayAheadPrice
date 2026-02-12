@@ -1,4 +1,6 @@
-﻿namespace DayAheadPrice.Entities;
+﻿using DayAheadPrice.Extensions;
+
+namespace DayAheadPrice.Entities;
 
 /// <summary>
 /// Entity which contains the price list.
@@ -6,6 +8,9 @@
 [Serializable]
 internal class PriceList
 {
+    private const int HoursBefore = 12;
+    private const int HoursAfter = 48;
+
     /// <summary>
     /// List of prices per hour.
     /// </summary>
@@ -19,11 +24,17 @@ internal class PriceList
     /// <returns>Sorted list with time and electricity price values (c/kWh).</returns>
     public SortedList<DateTime, decimal> GetPrices(decimal margin, decimal vat)
     {
+        var minDate = DateTime.Now.Floor().AddHours(-HoursBefore);
+        var maxDate = DateTime.Now.Floor().AddHours(HoursAfter);
+
         SortedList<DateTime, decimal> adjustedPrices = [];
 
         foreach (var price in Prices)
         {
-            adjustedPrices.Add(price.Key, price.Value * (1m + vat) + margin);
+            if (price.Key >= minDate && price.Key <= maxDate)
+            {
+                adjustedPrices.Add(price.Key, price.Value * (1m + vat) + margin);
+            }
         }
 
         return adjustedPrices;
