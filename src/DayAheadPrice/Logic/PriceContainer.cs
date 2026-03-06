@@ -17,6 +17,7 @@ internal class PriceContainer
     private readonly ILogger<PriceContainer> _logger;
     private DateTime _lastUpdate = DateTime.MinValue;
     private PriceList _currentPriceList = new();
+    private Random _rand = new();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PriceContainer"/> class.
@@ -175,11 +176,33 @@ internal class PriceContainer
         };
     }
 
+    private PriceList GenerateTestPrices2()
+    {
+        var prices = new SortedList<DateTime, decimal>();
+
+        for (var date = DateTime.UtcNow.AddDays(-1).Floor(); date < DateTime.UtcNow.AddDays(0.5).Floor(); date += TimeSpan.FromMinutes(15))
+        {
+            if(_rand.NextDouble() < 0.25)
+            {
+                prices.Add(date, (decimal)_rand.Next(4) * 1m);
+            }
+            else
+            {
+                prices.Add(date, 3m * (decimal)_rand.NextDouble());
+            }
+        }
+
+        return new PriceList
+        {
+            Prices = prices
+        };
+    }
+
     private async Task<PriceList> MakePriceRequestAsync()
     {
         if (_endpointOptions.GenerateTestData)
         {
-            return GenerateTestPrices();
+            return GenerateTestPrices2();
         }
 
         using HttpClient httpClient = new();

@@ -8,11 +8,11 @@
     var gridHeightPercent = gridScale*100 / (Max - Math.Min(Min, 0.0m));
 
     var gridLines = (int)Math.Round(100.0m / gridHeightPercent);
-    var emptyGridLines = barHeightPercent > 0 ? Max / gridScale - (int)Math.Ceiling(barHeightPercent / gridHeightPercent) : -Min / gridScale - (int)Math.Ceiling(-barHeightPercent / gridHeightPercent);
     var fullBarLines = (int)(Math.Abs(barHeightPercent) / gridHeightPercent);
     var intersectionEmptyFraction = gridHeightPercent - (Math.Abs(barHeightPercent) - fullBarLines * gridHeightPercent) % gridHeightPercent;
     var barVisible = Price != 0;
     var mixedBlockVisible = Price % gridScale != 0;
+    var emptyGridLines = gridLines - fullBarLines - (mixedBlockVisible ? 1 : 0);
 
     var eventToRun = $"setPriceData(event, '{GetPriceString()}', '{GetTimeString()}')";
 }
