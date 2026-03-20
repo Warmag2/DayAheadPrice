@@ -6,7 +6,7 @@ namespace DayAheadPrice.Entities;
 /// ENTSO-e time series entity.
 /// </summary>
 [Serializable]
-internal class EntsoeTimeSeries
+public class EntsoeTimeSeries
 {
     /// <summary>
     /// The currency for this timeseries result.
