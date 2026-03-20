@@ -17,7 +17,7 @@ internal class PriceContainer
     private readonly ILogger<PriceContainer> _logger;
     private DateTime _lastUpdate = DateTime.MinValue;
     private PriceList _currentPriceList = new();
-    private Random _rand = new();
+    private readonly Random _rand = new();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PriceContainer"/> class.
@@ -74,7 +74,7 @@ internal class PriceContainer
     }
 
     /// <summary>
-    /// Parse the price information from entso-e reported number format.
+    /// Parse the price information from ENTSO-e reported number format.
     /// Has to be done this way since the API returns something idiotic.
     /// </summary>
     /// <param name="price">The number as string.</param>
@@ -184,7 +184,7 @@ internal class PriceContainer
         {
             if(_rand.NextDouble() < 0.25)
             {
-                prices.Add(date, (decimal)_rand.Next(4) * 1m);
+                prices.Add(date, _rand.Next(4) * 1m);
             }
             else
             {
