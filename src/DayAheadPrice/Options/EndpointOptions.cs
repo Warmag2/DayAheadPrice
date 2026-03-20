@@ -1,7 +1,7 @@
 ﻿namespace DayAheadPrice.Options;
 
 /// <summary>
-/// Options for fetching data from the ensoe API.
+/// Options for fetching data from the ENTSO-e API.
 /// </summary>
 internal class EndpointOptions
 {
@@ -16,7 +16,7 @@ internal class EndpointOptions
     public string ApiKey { get; set; } = string.Empty;
 
     /// <summary>
-    /// Docynebt type to ask.
+    /// Document type to ask.
     /// </summary>
     /// <remarks>
     /// Use default if you do not know what this means.

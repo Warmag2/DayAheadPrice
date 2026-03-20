@@ -7,7 +7,7 @@ namespace DayAheadPrice.Entities;
 /// Time interval for ENTSO-E import data.
 /// </summary>
 [Serializable]
-public class EntsoeTimeInterval
+internal class EntsoeTimeInterval
 {
     private string _startField = string.Empty;
 
