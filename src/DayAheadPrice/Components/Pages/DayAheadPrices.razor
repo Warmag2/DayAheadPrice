@@ -9,7 +9,13 @@
 @inject IOptions<PricingOptions> _pricingOptions
 @inject NavigationManager _navigationManager
 @page "/"
-@rendermode InteractiveServer
+@* InteractiveServer is not needed for this page. All mouse/touch event handlers call
+   a plain JavaScript function (setPriceData) via an inline string attribute, so no
+   Blazor circuit is required to handle them. Removing InteractiveServer means the page
+   is rendered once on the server and sent as static HTML — no persistent SignalR
+   WebSocket connection is kept open per visitor, which saves ~250KB+ of server-side
+   circuit memory per connected user.
+@rendermode InteractiveServer *@
 
 <PageTitle>Day-ahead electricity prices (Finland)</PageTitle>
 
