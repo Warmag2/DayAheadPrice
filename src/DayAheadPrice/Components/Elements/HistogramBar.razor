@@ -11,7 +11,7 @@
     var eventToRun = $"setPriceData(event, '{GetPriceString()}', '{GetTimeString()}')";
 }
 
-<div class="fullheight histogrambar @(Time != DateTime.MinValue && Time.Day == DateTime.Now.Day && Time.Floor() != DateTime.Now.Floor() ? "currentday" : string.Empty) @(Time.Floor() == DateTime.Now.Floor() ? "currenthour" : string.Empty)" style="--grid-h: @(gridHeightPercent.ToString("#.###"))%" onmouseenter=@(eventToRun) ontouchenter=@(eventToRun)>
+<div class="histogrambar @(Time != DateTime.MinValue && Time.Day == DateTime.Now.Day && Time.Floor() != DateTime.Now.Floor() ? "currentday" : string.Empty) @(Time.Floor() == DateTime.Now.Floor() ? "currenthour" : string.Empty)" style="--grid-h: @(gridHeightPercent.ToString("#.###"))%" onmouseenter=@(eventToRun) ontouchstart=@(eventToRun)>
     @if (Time == DateTime.MinValue)
     {
         var gridLines = (int)Math.Round(100.0m / gridHeightPercent);

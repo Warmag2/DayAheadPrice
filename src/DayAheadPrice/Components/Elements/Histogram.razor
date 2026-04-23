@@ -1,7 +1,7 @@
 ﻿@using DayAheadPrice.Extensions
 @inherits ComponentBase
 
-<div class="histogramblock fullheight fullwidth">
+<div class="histogramblock">
     <div class="gridhost histogramheader">
         <div class="fullwidth gridnumber">
             c€
@@ -14,8 +14,8 @@
 
 @foreach (var priceGroup in Prices.GroupBy(p => new DateTime(p.Key.Year, p.Key.Month, p.Key.Day, p.Key.Hour, 0, 0, DateTimeKind.Local)))
 {
-    <div class="histogramblock fullheight fullwidth leftborder">
-        <div class="gridhost histogramheader  @(priceGroup.Key.Day == DateTime.Now.Day && priceGroup.Key != DateTime.Now.Floor() ? "currentday" : string.Empty) @(priceGroup.Key == DateTime.Now.Floor() ? "currenthour" : string.Empty)">
+    <div class="histogramblock leftborder">
+        <div class="gridhost histogramheader @(priceGroup.Key.Day == DateTime.Now.Day && priceGroup.Key != DateTime.Now.Floor() ? "currentday" : string.Empty) @(priceGroup.Key == DateTime.Now.Floor() ? "currenthour" : string.Empty)">
             <div class="fullwidth gridnumber">
                 @(priceGroup.Key.Hour)
             </div>

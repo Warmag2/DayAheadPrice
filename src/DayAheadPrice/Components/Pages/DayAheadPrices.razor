@@ -24,12 +24,12 @@
     }
 </script>
 
-<div class="page">
-    <div Id="TimeHeader" class="fullwidth pageheader">
+<div class="fullwidth page">
+    <div id="TimeHeader" class="pageheader">
         @_timeString
     </div>
 
-    <div id="PriceHeader" class="fullwidth pageheader">
+    <div id="PriceHeader" class="pageheader">
         @_priceString
     </div>
 
@@ -105,7 +105,7 @@
 
         if (_priceList != null)
         {
-            var prices = _priceList?.GetPrices(_margin, _vat);
+            var prices = _priceList.GetPrices(_margin, _vat);
             var printValue = prices?.TryGetValue(DateTime.Now.Floor(FloorResolution.Quarter), out var value) == true ? value : 0m;
             SetPriceString(printValue);
             SetTimeString(DateTime.Now.Floor(FloorResolution.Quarter));
