@@ -8,7 +8,7 @@
         </div>
     </div>
     <div class="histogramcontent">
-        <HistogramBar Max=@Max Min=@Min Count=1 Price=0m Time=@DateTime.MinValue />
+        <HistogramBar Max=@Max Min=@Min Price=0m Time=@DateTime.MinValue />
     </div>
 </div>
 
@@ -23,7 +23,7 @@
         <div class="histogramcontent @(priceGroup.Key.Day == DateTime.Now.Day && priceGroup.Key != DateTime.Now.Floor() ? "currentday" : string.Empty) @(priceGroup.Key == DateTime.Now.Floor() ? "currenthour" : string.Empty)">
             @foreach (var (time, price) in priceGroup)
             {
-                <HistogramBar Max=@Max Min=@Min Count=@priceGroup.Count() Price=@price Time=@time />
+                <HistogramBar Max=@Max Min=@Min Price=@price Time=@time />
             }
         </div>
     </div>

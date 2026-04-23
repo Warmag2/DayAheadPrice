@@ -1,4 +1,5 @@
 html, body {
+    height: 100%;
     font-family: monospace;
 }
 /*'Helvetica Neue', Helvetica, Arial, sans-serif;*/
@@ -77,7 +78,7 @@ div.page {
     display: flex;
     flex-direction: column;
     width: 100%;
-    height: 80vh;
+    height: 100%;
 }
 
 div.fullheight {
@@ -96,22 +97,22 @@ div.pageheader {
 
 div.pagecontent {
     display: flex;
-    width: 99%;
+    flex: 1;
+    min-height: 0;
     margin-left: auto;
     margin-right: auto;
-    height: 100%;
 }
 
 div.currenthour {
-    background: #A797E7;
+    background-color: #A797E7;
 }
 
 div.currentday {
-    background: #D8D8D8;
+    background-color: #D8D8D8;
 }
 
 div.histogramblock {
-    flex-direction: row;
+    flex: 1;
 }
 
 div.leftborder {
@@ -124,33 +125,46 @@ div.histogramheader {
 }
 
 div.histogramcontent {
-    flex-direction: column;
+    display: flex;
+    flex-direction: row;
     height: calc(100% - 2.5vw);
 }
 
 div.histogrambar {
-    flex-direction: row;
-    float: left;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    background-image: repeating-linear-gradient(
+        to bottom,
+        transparent 0%,
+        transparent calc(var(--grid-h) - 1px),
+        darkslategray calc(var(--grid-h) - 1px),
+        darkslategray var(--grid-h)
+    );
+}
+
+div.histogrambar > * {
+    min-height: 0;
 }
 
 div.histogrambar:hover {
-    background: #6787B7;
+    background-color: #6787B7;
 }
 
 div.histogrambar:active {
-    background: #6787B7;
+    background-color: #6787B7;
 }
 
 div.price {
     background: rgba(0, 152, 0, .6);
-    box-shadow: inset 0px 0px 0px 1px darkslategray;
+    border: 1px solid darkslategray;
     pointer-events: none;
     touch-action: none;
 }
 
 div.noprice {
     background: transparent;
-    box-shadow: inset 0px -1px 0px 0px darkslategray;
     pointer-events: none;
     touch-action: none;
 }

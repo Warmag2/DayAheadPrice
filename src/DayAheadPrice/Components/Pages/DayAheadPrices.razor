@@ -25,11 +25,11 @@
 </script>
 
 <div class="page">
-    <div Id="TimeHeader" class="fullwidth pageheader" onclick=messIt(event)>
+    <div Id="TimeHeader" class="fullwidth pageheader">
         @_timeString
     </div>
 
-    <div id="PriceHeader" class="fullwidth pageheader" onclick=messIt(event)>
+    <div id="PriceHeader" class="fullwidth pageheader">
         @_priceString
     </div>
 
@@ -42,7 +42,7 @@
         var ceilPrice = (int)Math.Ceiling(maxPrice / gridScale) * gridScale;
         var floorPrice = (int)Math.Floor(minPrice / gridScale) * gridScale;
 
-        <div class="pagecontent">
+        <div class="fullwidth pagecontent">
             <Histogram Max=@ceilPrice Min=@floorPrice Prices=@prices />
         </div>
     }

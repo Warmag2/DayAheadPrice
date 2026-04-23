@@ -5,6 +5,7 @@ using DayAheadPrice.Entities;
 using DayAheadPrice.Extensions;
 using DayAheadPrice.Options;
 using Microsoft.Extensions.Options;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace DayAheadPrice.Logic;
 
@@ -161,13 +162,20 @@ internal class PriceContainer
     /// Price list for testing and when API is not available.
     /// </summary>
     /// <returns>A testing price list.</returns>
-    private static PriceList GenerateTestPrices()
+    private PriceList GenerateTestPrices()
     {
         var prices = new SortedList<DateTime, decimal>();
 
         for (var date = DateTime.UtcNow.AddDays(-1).Floor(); date < DateTime.UtcNow.AddDays(0.5).Floor(); date += TimeSpan.FromMinutes(15))
         {
-            prices.Add(date, 1m * (decimal)Math.Sin(2 * Math.PI * date.Hour / 24));
+            if (_rand.NextDouble() < 0.9)
+            {
+                prices.Add(date, 1m * (decimal)Math.Sin(2 * Math.PI * date.Hour / 24));
+            }
+            else
+            {
+                prices.Add(date, 0m);
+            }
         }
 
         return new PriceList
@@ -202,7 +210,7 @@ internal class PriceContainer
     {
         if (_endpointOptions.GenerateTestData)
         {
-            return GenerateTestPrices2();
+            return GenerateTestPrices();
         }
 
         using HttpClient httpClient = new();
