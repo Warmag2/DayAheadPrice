@@ -36,10 +36,34 @@ html, body {
     Own additions
 **********************************************************************/
 
+div.page[data-theme="dark"] {
+    --color-background: #111827;
+    --color-text: #FFB300;
+    --color-grid: #B87800;
+    --color-price: rgba(34, 211, 238, 0.45);
+    --color-price-border: #67E8F9;
+    --color-hover: #C47319;
+    --color-currenthour: #92400E;
+    --color-currentday: #1F2937;
+}
+
+div.page[data-theme="light"] {
+    --color-background: white;
+    --color-text: black;
+    --color-grid: darkslategray;
+    --color-price: rgba(0, 152, 0, 0.6);
+    --color-price-border: darkslategray;
+    --color-hover: #6787B7;
+    --color-currenthour: #A797E7;
+    --color-currentday: #D8D8D8;
+}
+
 div.page {
     display: flex;
     flex-direction: column;
     height: 100%;
+    background-color: var(--color-background);
+    color: var(--color-text);
 }
 
 div.fullwidth {
@@ -59,11 +83,11 @@ div.pagecontent {
 }
 
 div.currenthour {
-    background-color: #A797E7;
+    background-color: var(--color-currenthour);
 }
 
 div.currentday {
-    background-color: #D8D8D8;
+    background-color: var(--color-currentday);
 }
 
 div.histogramblock {
@@ -71,11 +95,11 @@ div.histogramblock {
 }
 
 div.leftborder {
-    border-left: 1px solid darkslategray;
+    border-left: 1px solid var(--color-grid);
 }
 
 div.histogramheader {
-    border-bottom: 1px solid darkslategray;
+    border-bottom: 1px solid var(--color-grid);
     height: 2.5vw;
 }
 
@@ -94,8 +118,8 @@ div.histogrambar {
         to bottom,
         transparent 0%,
         transparent calc(var(--grid-h) - 1px),
-        darkslategray calc(var(--grid-h) - 1px),
-        darkslategray var(--grid-h)
+        var(--color-grid) calc(var(--grid-h) - 1px),
+        var(--color-grid) var(--grid-h)
     );
 }
 
@@ -104,11 +128,11 @@ div.histogrambar > * {
 }
 
 div.histogrambar:hover {
-    background-color: #6787B7;
+    background-color: var(--color-hover);
 }
 
 div.histogrambar:active {
-    background-color: #6787B7;
+    background-color: var(--color-hover);
 }
 
 div.price, div.noprice {
@@ -117,8 +141,8 @@ div.price, div.noprice {
 }
 
 div.price {
-    background: rgba(0, 152, 0, .6);
-    border: 1px solid darkslategray;
+    background: var(--color-price);
+    border: 1px solid var(--color-price-border);
 }
 
 div.gridhost {

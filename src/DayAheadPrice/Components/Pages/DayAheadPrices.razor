@@ -24,7 +24,7 @@
     }
 </script>
 
-<div class="fullwidth page">
+<div class="fullwidth page" data-theme="@_theme">
     <div id="TimeHeader" class="pageheader">
         @_timeString
     </div>
@@ -64,6 +64,7 @@
 
 @code {
     private PriceList? _priceList = null;
+    private string _theme = "dark";
     private decimal _margin;
     private decimal _vat;
 
@@ -83,6 +84,12 @@
 
     protected override async Task OnInitializedAsync()
     {
+        if (_navigationManager.TryGetQueryString<string>("theme", out var theme)
+            && (theme == "light" || theme == "dark"))
+        {
+            _theme = theme;
+        }
+
         if (_navigationManager.TryGetQueryString<decimal>("margin", out var margin))
         {
             _margin = margin;
