@@ -91,7 +91,14 @@ div.currentday {
 }
 
 div.histogramblock {
+    display: flex;
+    flex-direction: column;
     flex: 1;
+    min-width: 0;
+}
+
+.pagecontent > .histogramblock:first-child {
+    min-width: 5rem;
 }
 
 div.leftborder {
@@ -100,20 +107,13 @@ div.leftborder {
 
 div.histogramheader {
     border-bottom: 1px solid var(--color-grid);
-    height: 2.5vw;
+    height: clamp(3rem, 2.6vw, 6rem);
 }
 
 div.histogramcontent {
     display: flex;
     flex-direction: row;
-    height: calc(100% - 2.5vw);
-}
-
-div.histogrambar {
-    display: flex;
-    flex-direction: column;
     flex: 1;
-    min-height: 0;
     background-image: repeating-linear-gradient(
         to bottom,
         transparent 0%,
@@ -121,6 +121,13 @@ div.histogrambar {
         var(--color-grid) calc(var(--grid-h) - 1px),
         var(--color-grid) var(--grid-h)
     );
+}
+
+div.histogrambar {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
 }
 
 div.histogrambar > * {
@@ -151,7 +158,27 @@ div.gridhost {
 
 div.gridnumber {
     align-self: flex-end;
-    font-size: 1.6vw;
+    font-size: clamp(2rem, 1.8vw, 4rem);
     font-weight: bold;
     text-align: center;
+    text-shadow: -2px -2px 4px var(--color-background),
+                  2px -2px 4px var(--color-background),
+                 -2px  2px 4px var(--color-background),
+                  2px  2px 4px var(--color-background);
+}
+
+@media (max-width: 750px) {
+    .pagecontent > .histogramblock:nth-child(2n+3) .histogramheader .gridnumber {
+        visibility: hidden;
+    }
+    .pagecontent > .histogramblock:nth-child(2n+2) .histogramheader {
+        position: relative;
+        overflow: visible;
+    }
+    .pagecontent > .histogramblock:nth-child(2n+2) .histogramheader .gridnumber {
+        position: absolute;
+        width: max-content;
+        left: 50%;
+        transform: translateX(-50%);
+    }
 }

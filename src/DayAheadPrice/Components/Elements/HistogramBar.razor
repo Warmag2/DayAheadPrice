@@ -9,24 +9,9 @@
     var barVisible = Price != 0;
 
     var eventToRun = $"setPriceData(event, '{GetPriceString()}', '{GetTimeString()}')";
-
-    var currentDay = Time != DateTime.MinValue && Time.Day == DateTime.Now.Day && Time.Floor() != DateTime.Now.Floor();
-    var currentHour = Time.Floor() == DateTime.Now.Floor();
-
-    List<string> backgroundClasses = ["histogrambar"];
-    
-    if (currentDay)
-    {
-        backgroundClasses.Add("currentday");
-    }
-
-    if (currentHour)
-    {
-        backgroundClasses.Add("currenthour");
-    }
 }
 
-<div class=@(string.Join(' ', backgroundClasses)) style="--grid-h: @(gridHeightPercent.ToString("#.###"))%" onmouseenter=@(eventToRun) ontouchstart=@(eventToRun)>
+<div class="histogrambar" onmouseenter=@(eventToRun) ontouchstart=@(eventToRun)>
     @if (Time == DateTime.MinValue)
     {
         var gridLines = (int)Math.Round(100.0m / gridHeightPercent);

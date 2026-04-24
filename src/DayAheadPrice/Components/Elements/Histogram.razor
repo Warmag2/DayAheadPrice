@@ -1,5 +1,12 @@
 ﻿@using DayAheadPrice.Extensions
+@using static DayAheadPrice.Logic.GridScaleSelector
 @inherits ComponentBase
+
+@{
+    var gridScale = GetGridScale(Max, Min);
+    var gridHeightPercent = gridScale * 100 / (Max - Math.Min(Min, 0.0m));
+    var gridStyle = $"--grid-h: {gridHeightPercent.ToString("#.###")}%";
+}
 
 <div class="histogramblock">
     <div class="gridhost histogramheader">
@@ -7,7 +14,7 @@
             c€
         </div>
     </div>
-    <div class="histogramcontent">
+    <div class="histogramcontent" style=@gridStyle>
         <HistogramBar Max=@Max Min=@Min Price=0m Time=@DateTime.MinValue />
     </div>
 </div>
@@ -35,7 +42,7 @@
                 @(priceGroup.Key.Hour)
             </div>
         </div>
-        <div class=@(string.Join(' ', backgroundClasses.Concat(["histogramcontent"])))>
+        <div class=@(string.Join(' ', backgroundClasses.Concat(["histogramcontent"]))) style=@gridStyle>
             @foreach (var (time, price) in priceGroup)
             {
                 <HistogramBar Max=@Max Min=@Min Price=@price Time=@time />
