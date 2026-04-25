@@ -250,7 +250,7 @@ div.gridnumber {
 }
 
 /* Touch (phones/tablets): hide every other label in portrait mode.*/
-@media (hover: none) and (pointer: coarse) and (max-width: 600px) {
+@media (hover: none) and (pointer: coarse) and (max-width: 800px) {
     .pagecontent > .histogramblock:nth-child(2n+2) .histogramheader .gridnumber {
         visibility: hidden;
     }
