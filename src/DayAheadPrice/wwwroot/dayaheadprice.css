@@ -186,7 +186,7 @@ div.gridnumber {
     }
 
     div.histogramheader {
-        height: clamp(16px, 1.5vw, 28px);
+        height: clamp(24px, 1.5vw, 38px);
     }
 }
 
