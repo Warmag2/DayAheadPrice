@@ -249,7 +249,7 @@ div.gridnumber {
     }
 }
 
-/* Touch (phones/tablets): hide every other label in portrait mode.*/
+/* Touch versions.*/
 @media (hover: none) and (pointer: coarse) and (max-width: 800px) {
     .pagecontent > .histogramblock:nth-child(2n+2) .histogramheader .gridnumber {
         visibility: hidden;
@@ -265,4 +265,40 @@ div.gridnumber {
         left: 50%;
         transform: translateX(-50%);
     }
+}
+
+@media (hover: none) and (pointer: coarse) and (max-width: 450px) {
+    .pagecontent > .histogramblock:nth-child(2n+2) .histogramheader .gridnumber {
+        visibility: initial;
+    }
+
+    .pagecontent > .histogramblock:nth-child(3n+2) .histogramheader .gridnumber {
+        visibility: hidden;
+    }
+
+    .pagecontent > .histogramblock:nth-child(3n+3) .histogramheader .gridnumber {
+        visibility: hidden;
+    }
+
+    .pagecontent > .histogramblock:nth-child(2n+3) .histogramheader {
+        position: static;
+    }
+
+        .pagecontent > .histogramblock:nth-child(2n+3) .histogramheader .gridnumber {
+            position: static;
+            width: 100%;
+            left: auto;
+            transform: none;
+        }
+
+    .pagecontent > .histogramblock:nth-child(3n+4) .histogramheader {
+        position: relative;
+    }
+
+        .pagecontent > .histogramblock:nth-child(3n+4) .histogramheader .gridnumber {
+            position: absolute;
+            width: max-content;
+            left: 50%;
+            transform: translateX(-50%);
+        }
 }
