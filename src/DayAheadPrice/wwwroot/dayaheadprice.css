@@ -190,7 +190,8 @@ div.gridnumber {
     }
 }
 
-@media (max-width: 1250px) {
+/* Desktop (mouse-driven): hide every other label at medium widths */
+@media (hover: hover) and (pointer: fine) and (max-width: 1250px) {
     .pagecontent > .histogramblock:nth-child(2n+2) .histogramheader .gridnumber {
         visibility: hidden;
     }
@@ -207,7 +208,8 @@ div.gridnumber {
     }
 }
 
-@media (max-width: 750px) {
+/* Desktop (mouse-driven): hide all but every third label at narrow widths */
+@media (hover: hover) and (pointer: fine) and (max-width: 750px) {
     .pagecontent > .histogramblock:nth-child(2n+2) .histogramheader .gridnumber {
         visibility: initial;
     }
@@ -220,15 +222,15 @@ div.gridnumber {
         visibility: hidden;
     }
 
-    /* Reset the 1250px positioning rules - leftover positioned headers paint
-       after adjacent overflowing labels and cover them with their backgrounds. */
+    /* Reset 1250px positioning - leftover positioned headers paint after
+       adjacent overflowing labels and cover them with their backgrounds. */
     .pagecontent > .histogramblock:nth-child(2n+3) .histogramheader {
         position: static;
     }
 
     .pagecontent > .histogramblock:nth-child(2n+3) .histogramheader .gridnumber {
         position: static;
-        width: auto;
+        width: 100%;
         left: auto;
         transform: none;
     }
@@ -238,6 +240,25 @@ div.gridnumber {
     }
 
     .pagecontent > .histogramblock:nth-child(3n+4) .histogramheader .gridnumber {
+        position: absolute;
+        width: max-content;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+}
+
+/* Touch (phones/tablets): hide every other label in portrait mode.
+   450px covers all portrait phones while leaving landscape and tablets alone. */
+@media (hover: none) and (pointer: coarse) and (max-width: 450px) {
+    .pagecontent > .histogramblock:nth-child(2n+2) .histogramheader .gridnumber {
+        visibility: hidden;
+    }
+
+    .pagecontent > .histogramblock:nth-child(2n+3) .histogramheader {
+        position: relative;
+    }
+
+    .pagecontent > .histogramblock:nth-child(2n+3) .histogramheader .gridnumber {
         position: absolute;
         width: max-content;
         left: 50%;
