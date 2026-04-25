@@ -1,6 +1,9 @@
 html, body {
     height: 100%;
     font-family: monospace;
+    /* Prevent mobile browsers from auto-inflating font sizes above what CSS specifies. */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
 }
 
 .blazor-error-boundary {
