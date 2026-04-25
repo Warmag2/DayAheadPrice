@@ -166,7 +166,7 @@ internal class PriceContainer
     {
         var prices = new SortedList<DateTime, decimal>();
 
-        for (var date = DateTime.UtcNow.AddDays(-1).Floor(); date < DateTime.UtcNow.AddDays(0.5).Floor(); date += TimeSpan.FromMinutes(15))
+        for (var date = DateTime.UtcNow.AddDays(-1).Floor(); date < DateTime.UtcNow.AddDays(1.5).Floor(); date += TimeSpan.FromMinutes(15))
         {
             if (_rand.NextDouble() < 0.9)
             {

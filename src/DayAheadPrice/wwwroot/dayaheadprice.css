@@ -95,10 +95,12 @@ div.histogramblock {
     flex-direction: column;
     flex: 1;
     min-width: 0;
+    min-height: 0;
 }
 
 .pagecontent > .histogramblock:first-child {
-    min-width: 3rem;
+    min-width: 50px;
+    max-width: 80px
 }
 
 div.leftborder {
@@ -107,7 +109,7 @@ div.leftborder {
 
 div.histogramheader {
     border-bottom: 1px solid var(--color-grid);
-    height: clamp(3rem, 2.6vw, 6rem);
+    height: clamp(36px, 1.75vw, 56px);
 }
 
 div.histogramcontent {
@@ -127,11 +129,11 @@ div.histogrambar {
     display: flex;
     flex-direction: column;
     flex: 1;
-    min-height: 0;
 }
 
 div.histogrambar > * {
     min-height: 0;
+    overflow: visible;
 }
 
 div.histogrambar:hover {
@@ -159,7 +161,7 @@ div.gridhost {
 
 div.gridnumber {
     align-self: flex-end;
-    font-size: clamp(1.4rem, 1.5vw, 2.5rem);
+    font-size: clamp(24px, 1.05vw, 36px);
     font-weight: bold;
     text-align: center;
     text-shadow: -2px -2px 4px var(--color-background),
@@ -168,15 +170,54 @@ div.gridnumber {
                   2px  2px 4px var(--color-background);
 }
 
-@media (max-width: 1000px) {
-    .pagecontent > .histogramblock:nth-child(2n+3) .histogramheader .gridnumber {
+@media (max-width: 1250px) {
+    .pagecontent > .histogramblock:nth-child(2n+2) .histogramheader .gridnumber {
         visibility: hidden;
     }
-    .pagecontent > .histogramblock:nth-child(2n+2) .histogramheader {
+
+    .pagecontent > .histogramblock:nth-child(2n+3) .histogramheader {
         position: relative;
-        overflow: visible;
     }
+
+    .pagecontent > .histogramblock:nth-child(2n+3) .histogramheader .gridnumber {
+        position: absolute;
+        width: max-content;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+}
+
+@media (max-width: 750px) {
     .pagecontent > .histogramblock:nth-child(2n+2) .histogramheader .gridnumber {
+        visibility: initial;
+    }
+
+    .pagecontent > .histogramblock:nth-child(3n+2) .histogramheader .gridnumber {
+        visibility: hidden;
+    }
+
+    .pagecontent > .histogramblock:nth-child(3n+3) .histogramheader .gridnumber {
+        visibility: hidden;
+    }
+
+    /* Reset the 1250px positioning rules - leftover positioned headers paint
+       after adjacent overflowing labels and cover them with their backgrounds. */
+    .pagecontent > .histogramblock:nth-child(2n+3) .histogramheader {
+        position: static;
+    }
+
+    .pagecontent > .histogramblock:nth-child(2n+3) .histogramheader .gridnumber {
+        position: static;
+        width: auto;
+        left: auto;
+        transform: none;
+    }
+
+    .pagecontent > .histogramblock:nth-child(3n+4) .histogramheader {
+        position: relative;
+    }
+
+    .pagecontent > .histogramblock:nth-child(3n+4) .histogramheader .gridnumber {
         position: absolute;
         width: max-content;
         left: 50%;
