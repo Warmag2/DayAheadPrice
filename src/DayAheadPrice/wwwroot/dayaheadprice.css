@@ -173,26 +173,6 @@ div.gridnumber {
                   2px  2px 4px var(--color-background);
 }
 
-/* On touch devices the px floor in the default clamp never scales with the
-   viewport, so the font is disproportionately large relative to the vw-based
-   layout. Switch to a vw-driven value that tracks column width the same way
-   the layout elements do. The (hover:none)+(pointer:coarse) pair matches
-   phones and tablets but never desktop browsers, even at narrow window widths. */
-@media (hover: none) and (pointer: coarse) {
-    div.gridnumber {
-        font-size: clamp(12px, 1.05vw, 18px);
-    }
-
-    .pagecontent > .histogramblock:first-child {
-        min-width: 25px;
-        max-width: 40px;
-    }
-
-    div.histogramheader {
-        height: clamp(20px, 1.5vw, 32px);
-    }
-}
-
 /* Desktop (mouse-driven): hide every other label at medium widths */
 @media (hover: hover) and (pointer: fine) and (max-width: 1250px) {
     .pagecontent > .histogramblock:nth-child(2n+2) .histogramheader .gridnumber {
@@ -243,25 +223,6 @@ div.gridnumber {
     }
 
     .pagecontent > .histogramblock:nth-child(3n+4) .histogramheader .gridnumber {
-        position: absolute;
-        width: max-content;
-        left: 50%;
-        transform: translateX(-50%);
-    }
-}
-
-/* Touch (phones/tablets): hide every other label in portrait mode.
-   450px covers all portrait phones while leaving landscape and tablets alone. */
-@media (hover: none) and (pointer: coarse) and (max-width: 450px) {
-    .pagecontent > .histogramblock:nth-child(2n+2) .histogramheader .gridnumber {
-        visibility: hidden;
-    }
-
-    .pagecontent > .histogramblock:nth-child(2n+3) .histogramheader {
-        position: relative;
-    }
-
-    .pagecontent > .histogramblock:nth-child(2n+3) .histogramheader .gridnumber {
         position: absolute;
         width: max-content;
         left: 50%;
