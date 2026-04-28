@@ -109,7 +109,7 @@ div.leftborder {
 
 div.histogramheader {
     border-bottom: 1px solid var(--color-grid);
-    height: clamp(32px, 1.5vw, 54px);
+    height: clamp(35px, 1.5vw, 55px);
 }
 
 div.histogramcontent {
