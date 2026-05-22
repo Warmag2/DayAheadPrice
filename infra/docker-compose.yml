@@ -8,14 +8,11 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Release
       EndpointOptions__ApiKey: "${ENTSOE_APIKEY:?err}"
-    volumes:
-      - ./dpkeys:/app/dpkeys
     ports:
       - 127.0.0.1:8548:8080
     networks:
       - dayaheadpricenet
     restart: on-failure
-    user: "200:200"
 
 networks:
   dayaheadpricenet:

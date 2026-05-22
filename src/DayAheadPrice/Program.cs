@@ -26,7 +26,7 @@ internal static class Program
         builder.Services.Configure<EndpointOptions>(builder.Configuration.GetSection("EndpointOptions"));
         builder.Services.Configure<PricingOptions>(builder.Configuration.GetSection("PricingOptions"));
         builder.Services.AddSingleton<PriceContainer>();
-        builder.Services.AddDataProtection().SetApplicationName("DayAheadPrice").PersistKeysToFileSystem(new DirectoryInfo(@"/app/dpkeys/"));
+        builder.Services.AddDataProtection().SetApplicationName("DayAheadPrice");
 
         var app = builder.Build();
 
