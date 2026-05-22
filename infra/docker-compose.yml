@@ -10,9 +10,14 @@ services:
       EndpointOptions__ApiKey: "${ENTSOE_APIKEY:?err}"
     ports:
       - 127.0.0.1:8548:8080
+    volumes:
+      - dayaheadprice-dpkeys:/app/dpkeys
     networks:
       - dayaheadpricenet
     restart: on-failure
 
 networks:
   dayaheadpricenet:
+
+volumes:
+  dayaheadprice-dpkeys:
