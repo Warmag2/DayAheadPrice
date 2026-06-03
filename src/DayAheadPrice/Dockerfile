@@ -1,8 +1,8 @@
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
-ENV TZ="Europe/Helsinki"
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS base
+RUN apk add --no-cache tzdata
 WORKDIR /app
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build
 WORKDIR /build
 COPY ["src/", "src/"]
 WORKDIR "/build/src/DayAheadPrice"

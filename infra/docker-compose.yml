@@ -8,6 +8,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Release
       EndpointOptions__ApiKey: "${ENTSOE_APIKEY:?err}"
+      TZ: "Europe/Helsinki"
     ports:
       - 127.0.0.1:8548:8080
     volumes:
