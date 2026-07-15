@@ -1,5 +1,7 @@
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS base
 RUN apk add --no-cache tzdata
+RUN apk add --no-cache icu-libs
+ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
 WORKDIR /app
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build
