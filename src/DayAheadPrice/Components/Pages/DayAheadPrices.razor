@@ -41,6 +41,14 @@
 
     @if (prices != null && prices.Any())
     {
+        @* The fetch failed but the cached prices still cover future time, so show them with a warning. *@
+        @if (_fetchStatus != PriceFetchStatus.Success)
+        {
+            <p class="fetchwarning">
+                @GetStatusMessage() Showing the most recently fetched prices.
+            </p>
+        }
+
         var maxPrice = prices.Max(p => p.Value);
         var minPrice = prices.Min(p => p.Value);
         minPrice = Math.Min(minPrice, 0.0m);
@@ -55,7 +63,7 @@
     else
     {
         <p>
-            No data to display. This might be due to a fetch error.
+            @GetStatusMessage()
             <br />
             Try refreshing.
         </p>
@@ -64,12 +72,27 @@
 
 @code {
     private PriceList? _priceList = null;
+    private PriceFetchStatus _fetchStatus = PriceFetchStatus.Success;
     private string _theme = "dark";
     private decimal _margin;
     private decimal _vat;
 
     private string _timeString = string.Empty;
     private string _priceString = string.Empty;
+
+    private string GetStatusMessage()
+    {
+        return _fetchStatus switch
+        {
+            PriceFetchStatus.ApiUnavailable => "The ENTSO-E price service is currently unavailable.",
+            PriceFetchStatus.ApiNotFound => "The price service address returned \"not found\". API address is likely wrong.",
+            PriceFetchStatus.Unreachable => "The price service could not be reached at all. Check the network connection.",
+            PriceFetchStatus.NoDataForPeriod => "The price service returned no prices for this period. The price area configuration is likely incorrect.",
+            PriceFetchStatus.InvalidResponse => "The price service returned data in an unexpected format. Check data formatting.",
+            PriceFetchStatus.UnknownError => "Prices could not be loaded because of an unexpected error.",
+            _ => "No data to display."
+        };
+    }
 
     private void SetPriceString(decimal input)
     {
@@ -108,7 +131,10 @@
             _vat = _pricingOptions.Value.Vat;
         }
 
-        _priceList = await _priceContainer.GetPriceListAsync();
+        var fetchResult = await _priceContainer.GetPriceListAsync();
+
+        _priceList = fetchResult.Prices;
+        _fetchStatus = fetchResult.Status;
 
         if (_priceList != null)
         {

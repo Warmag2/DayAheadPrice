@@ -302,3 +302,11 @@ div.gridnumber {
             transform: translateX(-50%);
         }
 }
+
+p.fetchwarning {
+    margin: 0;
+    padding: 0.25em 0.5em;
+    text-align: center;
+    font-size: min(2vh, 2vw);
+    opacity: 0.75;
+}

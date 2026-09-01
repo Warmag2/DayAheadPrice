@@ -1,11 +1,11 @@
 ﻿using System.Globalization;
+using System.Net;
 using System.Xml;
 using System.Xml.Serialization;
 using DayAheadPrice.Entities;
 using DayAheadPrice.Extensions;
 using DayAheadPrice.Options;
 using Microsoft.Extensions.Options;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace DayAheadPrice.Logic;
 
@@ -14,6 +14,8 @@ namespace DayAheadPrice.Logic;
 /// </summary>
 internal class PriceContainer
 {
+    private const int MinimumServerErrorCode = 500;
+
     private readonly EndpointOptions _endpointOptions;
     private readonly ILogger<PriceContainer> _logger;
     private DateTime _lastUpdate = DateTime.MinValue;
@@ -34,15 +36,15 @@ internal class PriceContainer
     /// <summary>
     /// Gets a price list.
     /// </summary>
-    /// <returns>Current price list.</returns>
-    public async Task<PriceList?> GetPriceListAsync()
+    /// <returns>Current price list along with the outcome of the fetch.</returns>
+    public async Task<PriceFetchResult> GetPriceListAsync()
     {
         var currentTimeStamp = DateTime.UtcNow.Floor();
 
         // Early exit so we don't spam the API
         if (currentTimeStamp + TimeSpan.FromHours(12) < _currentPriceList.DateEnd)
         {
-            return _currentPriceList;
+            return new PriceFetchResult(_currentPriceList, PriceFetchStatus.Success);
         }
 
         if (currentTimeStamp > _lastUpdate)
@@ -51,22 +53,80 @@ internal class PriceContainer
             {
                 _logger.LogInformation("Data timestamp ({Last}) is older than current hour ({Current}). Making new request.", _lastUpdate, currentTimeStamp);
 
-                _currentPriceList = await MakePriceRequestAsync();
+                var priceList = await MakePriceRequestAsync();
+
+                if (priceList.Prices.Count == 0)
+                {
+                    _logger.LogError("ENTSO-e API returned a valid document containing no usable prices. Check the configured domain.");
+
+                    return MakeFailureResult(PriceFetchStatus.NoDataForPeriod);
+                }
+
+                _currentPriceList = priceList;
                 _lastUpdate = currentTimeStamp;
 
-                return _currentPriceList;
+                return new PriceFetchResult(_currentPriceList, PriceFetchStatus.Success);
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogError(ex, "Unable to fetch price information. Status code: {StatusCode}", ex.StatusCode);
+
+                return MakeFailureResult(ClassifyHttpFailure(ex));
+            }
+            catch (Exception ex) when (ex is InvalidDataException or InvalidOperationException or XmlException or FormatException)
+            {
+                _logger.LogError(ex, "Unable to read the price information response.");
+
+                return MakeFailureResult(PriceFetchStatus.InvalidResponse);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unable to fetch price information.");
 
-                return null;
+                return MakeFailureResult(PriceFetchStatus.UnknownError);
             }
         }
         else
         {
-            return _currentPriceList;
+            return new PriceFetchResult(_currentPriceList, PriceFetchStatus.Success);
         }
+    }
+
+    /// <summary>
+    /// Maps a failed request to the status shown to the user.
+    /// </summary>
+    /// <param name="exception">The exception thrown by the request.</param>
+    /// <returns>The matching status.</returns>
+    /// <remarks>
+    /// Authentication failures deliberately fall through to <see cref="PriceFetchStatus.UnknownError"/>
+    /// so that the page never reveals anything about the API key.
+    /// </remarks>
+    private static PriceFetchStatus ClassifyHttpFailure(HttpRequestException exception)
+    {
+        return exception.StatusCode switch
+        {
+            HttpStatusCode.NotFound => PriceFetchStatus.ApiNotFound,
+            HttpStatusCode statusCode when (int)statusCode >= MinimumServerErrorCode => PriceFetchStatus.ApiUnavailable,
+            null => PriceFetchStatus.Unreachable,
+            _ => PriceFetchStatus.UnknownError
+        };
+    }
+
+    /// <summary>
+    /// Builds a failure result, keeping the cached prices when they are still worth showing.
+    /// </summary>
+    /// <param name="status">The failure status.</param>
+    /// <returns>The failure result.</returns>
+    /// <remarks>
+    /// Prices are only fetched when the page is opened, so the cache can be arbitrarily old. It is
+    /// only useful while it still covers time that has not passed yet.
+    /// </remarks>
+    private PriceFetchResult MakeFailureResult(PriceFetchStatus status)
+    {
+        // Price keys are local time, since the API reports UTC which gets parsed into local time.
+        var hasFuturePrices = _currentPriceList.DateEnd > DateTime.Now;
+
+        return new PriceFetchResult(hasFuturePrices ? _currentPriceList : null, status);
     }
 
     private static string GetDateTimeFormatString(DateTime dateTime)
@@ -91,53 +151,48 @@ internal class PriceContainer
 
         var prices = new SortedList<DateTime, decimal?>();
 
-        try
+        // Parse failures are intentionally left to propagate, so that the caller can report them as
+        // a deserialization problem instead of them looking like the API returned no prices.
+        // Only accept EUR
+        foreach (var period in result.TimeSeries.Where(t => t.Currency == "EUR").SelectMany(t => t.Periods))
         {
-            // Only accept EUR
-            foreach (var period in result.TimeSeries.Where(t => t.Currency == "EUR").SelectMany(t => t.Periods))
+            // Only read 15min resolution for this on
+            if (period.Resolution == "PT15M")
             {
-                // Only read 15min resolution for this on
-                if (period.Resolution == "PT15M")
+                for (var timePosition = period.TimeInterval.StartDateTime; timePosition < period.TimeInterval.EndDateTime; timePosition += TimeSpan.FromMinutes(15))
                 {
-                    for (var timePosition = period.TimeInterval.StartDateTime; timePosition < period.TimeInterval.EndDateTime; timePosition += TimeSpan.FromMinutes(15))
+                    prices.TryAdd(timePosition, null);
+                }
+
+                foreach (var point in period.Points)
+                {
+                    var price = ParsePrice(point.Price) / 10;
+                    var location = period.TimeInterval.StartDateTime.AddMinutes(15 * (point.Position - 1));
+
+                    if (prices.TryGetValue(location, out var oldPrice) && oldPrice.HasValue)
                     {
-                        prices.TryAdd(timePosition, null);
+                        _logger.LogError("Attempting to add price where it already exists ({Time}): {Old}, {New}", location, oldPrice, price);
                     }
 
-                    foreach (var point in period.Points)
+                    prices[location] = price;
+                }
+
+                // Initialize the actual price list and fill any empty spots with their previous values
+                var lastPrice = 0m;
+
+                foreach (var point in prices)
+                {
+                    if (!point.Value.HasValue)
                     {
-                        var price = ParsePrice(point.Price) / 10;
-                        var location = period.TimeInterval.StartDateTime.AddMinutes(15 * (point.Position - 1));
-
-                        if (prices.TryGetValue(location, out var oldPrice) && oldPrice.HasValue)
-                        {
-                            _logger.LogError("Attempting to add price where it already exists ({Time}): {Old}, {New}", location, oldPrice, price);
-                        }
-
-                        prices[location] = price;
+                        AddToSeries(priceList, point.Key, lastPrice);
                     }
-
-                    // Initialize the actual price list and fill any empty spots with their previous values
-                    var lastPrice = 0m;
-
-                    foreach (var point in prices)
+                    else
                     {
-                        if (!point.Value.HasValue)
-                        {
-                            AddToSeries(priceList, point.Key, lastPrice);
-                        }
-                        else
-                        {
-                            lastPrice = point.Value.Value;
-                            AddToSeries(priceList, point.Key, lastPrice);
-                        }
+                        lastPrice = point.Value.Value;
+                        AddToSeries(priceList, point.Key, lastPrice);
                     }
                 }
             }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Unknown exception while fetching price list: {Message}", ex.Message);
         }
 
         return priceList;
@@ -228,17 +283,21 @@ internal class PriceContainer
             });
         var response = await httpClient.GetAsync(url);
 
+        // The API serves an HTML maintenance page instead of XML while it is down, so fail on the
+        // status code here rather than letting it surface as a confusing deserialization error.
+        response.EnsureSuccessStatusCode();
+
         // Debug line for sending raw query
         //var response = await httpClient.GetAsync($"https://web-api.tp.entsoe.eu/api?securityToken={_endpointOptions.ApiKey}&documentType={_endpointOptions.DocumentType}&In_Domain={_endpointOptions.Domain}&Out_Domain={_endpointOptions.Domain}&periodStart={GetDateTimeFormatString(DateTime.Now.AddDays(-1).Floor())}&periodEnd={GetDateTimeFormatString(DateTime.Now.AddDays(1).Floor())}"); //202511010000&periodEnd=202511012345");
 
         var serializer = new XmlSerializer(typeof(Publication_MarketDocument));
         var xmlReaderSettings = new XmlReaderSettings()
         {
-            DtdProcessing = DtdProcessing.Parse
+            DtdProcessing = DtdProcessing.Ignore
         };
 
         // Debug line at seeing raw response
-        //var text = await response.Content.ReadAsStringAsync();
+        var text = await response.Content.ReadAsStringAsync();
 
         var xmlReader = XmlReader.Create(await response.Content.ReadAsStreamAsync(), xmlReaderSettings);
 
