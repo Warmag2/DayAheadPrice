@@ -64,8 +64,6 @@
     {
         <p>
             @GetStatusMessage()
-            <br />
-            Try refreshing.
         </p>
     }
 </div>
@@ -86,8 +84,8 @@
         {
             PriceFetchStatus.ApiUnavailable => "The ENTSO-E price service is currently unavailable.",
             PriceFetchStatus.ApiNotFound => "The price service address returned \"not found\". API address is likely wrong.",
-            PriceFetchStatus.Unreachable => "The price service could not be reached at all. Check the network connection.",
-            PriceFetchStatus.NoDataForPeriod => "The price service returned no prices for this period. The price area configuration is likely incorrect.",
+            PriceFetchStatus.Unreachable => "The price service could not be reached. Check the network connection.",
+            PriceFetchStatus.NoDataForPeriod => "The price service returned no prices for this period. Check price area configuration.",
             PriceFetchStatus.InvalidResponse => "The price service returned data in an unexpected format. Check data formatting.",
             PriceFetchStatus.UnknownError => "Prices could not be loaded because of an unexpected error.",
             _ => "No data to display."
@@ -102,7 +100,6 @@
     private void SetTimeString(DateTime input)
     {
         _timeString = $"{input.Month.ToString("00")}-{input.Day.ToString("00")} \u23F2 {input.Hour.ToString("00")}:{input.Minute.ToString("00")} \u2014 {(input.Hour).ToString("00")}:{(input.Minute + 14).ToString("00")}";
-        //_timeString = $"{input.Month.ToString("00")}-{input.Day.ToString("00")} \u23F2 {input.Hour.ToString("00")} \u2014 {(input.Hour + 1).ToString("00")}";
     }
 
     protected override async Task OnInitializedAsync()
