@@ -278,8 +278,8 @@ internal class PriceContainer
                 { "periodEnd", GetDateTimeFormatString(DateTime.Now.AddDays(1).Floor()) },
                 { "securityToken", _endpointOptions.ApiKey },
                 { "documentType", _endpointOptions.DocumentType },
-                { "In_Domain", _endpointOptions.Domain },
-                { "Out_Domain", _endpointOptions.Domain }
+                { "in_Domain", _endpointOptions.Domain },
+                { "out_Domain", _endpointOptions.Domain }
             });
         var response = await httpClient.GetAsync(url);
 
@@ -288,7 +288,7 @@ internal class PriceContainer
         response.EnsureSuccessStatusCode();
 
         // Debug line for sending raw query
-        //var response = await httpClient.GetAsync($"https://web-api.tp.entsoe.eu/api?securityToken={_endpointOptions.ApiKey}&documentType={_endpointOptions.DocumentType}&In_Domain={_endpointOptions.Domain}&Out_Domain={_endpointOptions.Domain}&periodStart={GetDateTimeFormatString(DateTime.Now.AddDays(-1).Floor())}&periodEnd={GetDateTimeFormatString(DateTime.Now.AddDays(1).Floor())}"); //202511010000&periodEnd=202511012345");
+        //var response = await httpClient.GetAsync($"https://web-api.tp.entsoe.eu/api?securityToken={_endpointOptions.ApiKey}&documentType={_endpointOptions.DocumentType}&in_Domain={_endpointOptions.Domain}&out_Domain={_endpointOptions.Domain}&periodStart={GetDateTimeFormatString(DateTime.Now.AddDays(-1).Floor())}&periodEnd={GetDateTimeFormatString(DateTime.Now.AddDays(1).Floor())}"); //202511010000&periodEnd=202511012345");
 
         var serializer = new XmlSerializer(typeof(Publication_MarketDocument));
         var xmlReaderSettings = new XmlReaderSettings()
@@ -297,7 +297,7 @@ internal class PriceContainer
         };
 
         // Debug line at seeing raw response
-        var text = await response.Content.ReadAsStringAsync();
+        //var text = await response.Content.ReadAsStringAsync();
 
         var xmlReader = XmlReader.Create(await response.Content.ReadAsStreamAsync(), xmlReaderSettings);
 
