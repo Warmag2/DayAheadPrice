@@ -1,0 +1,22 @@
+name: dayaheadprice-dev
+
+# Local-only PostgreSQL for testing the price-memory feature. Not for production use.
+# Start with:  docker compose -f infratemp/docker-compose.yml up -d
+# The matching connection string lives in appsettings.Development.json.
+services:
+  postgres:
+    container_name: dayaheadprice-postgres
+    image: postgres:17
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: dayaheadprice
+      TZ: "Europe/Helsinki"
+    ports:
+      - 127.0.0.1:5432:5432
+    volumes:
+      - dayaheadprice-pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  dayaheadprice-pgdata:

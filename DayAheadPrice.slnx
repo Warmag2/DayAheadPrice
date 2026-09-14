@@ -1,4 +1,3 @@
 <Solution>
-  <Project Path="../RepositoryPrototype/src/RepositoryPrototype/RepositoryPrototype.csproj" />
   <Project Path="src/DayAheadPrice/DayAheadPrice.csproj" />
 </Solution>
