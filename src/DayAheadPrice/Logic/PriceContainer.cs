@@ -1,10 +1,11 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Net;
 using System.Xml;
 using System.Xml.Serialization;
 using DayAheadPrice.Entities;
 using DayAheadPrice.Extensions;
 using DayAheadPrice.Options;
+using DayAheadPrice.Repositories;
 using Microsoft.Extensions.Options;
 
 namespace DayAheadPrice.Logic;
@@ -15,22 +16,172 @@ namespace DayAheadPrice.Logic;
 internal class PriceContainer
 {
     private const int MinimumServerErrorCode = 500;
+    private const int RefreshLookaheadHours = 12;
+    private const int StoredResolutionMinutes = 15;
+    private const string StoredCurrency = "EUR";
 
     private readonly EndpointOptions _endpointOptions;
+    private readonly PersistenceOptions _persistenceOptions;
+    private readonly PricePointRepository _repository;
     private readonly ILogger<PriceContainer> _logger;
     private DateTime _lastUpdate = DateTime.MinValue;
     private PriceList _currentPriceList = new();
     private readonly Random _rand = new();
+    private DateTime _earliestBackfillUtc = DateTime.MaxValue;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PriceContainer"/> class.
     /// </summary>
     /// <param name="logger">The logging endpoint.</param>
     /// <param name="endpointOptions">The endpoint options.</param>
-    public PriceContainer(ILogger<PriceContainer> logger, IOptions<EndpointOptions> endpointOptions)
+    /// <param name="persistenceOptions">The persistence options.</param>
+    /// <param name="repository">The price repository used when persistence is enabled.</param>
+    public PriceContainer(
+        ILogger<PriceContainer> logger,
+        IOptions<EndpointOptions> endpointOptions,
+        IOptions<PersistenceOptions> persistenceOptions,
+        PricePointRepository repository)
     {
         _endpointOptions = endpointOptions.Value;
+        _persistenceOptions = persistenceOptions.Value;
+        _repository = repository;
         _logger = logger;
+    }
+
+    /// <summary>
+    /// Ensure the database holds current prices, fetching and persisting from the API only when the stored data
+    /// no longer extends far enough into the future.
+    /// </summary>
+    /// <remarks>
+    /// The lookahead rule mirrors the in-memory cache: while stored prices reach more than
+    /// <see cref="RefreshLookaheadHours"/> hours ahead, no request is made, so on a normal day the first request
+    /// happens only once tomorrow's prices are due (around 13:00 local). A no-op when persistence is disabled.
+    /// </remarks>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    public async Task EnsureFreshAsync(CancellationToken cancellationToken = default)
+    {
+        if (!_persistenceOptions.Enabled)
+        {
+            return;
+        }
+
+        var bounds = await _repository.GetBoundsAsync(_endpointOptions.Domain, cancellationToken);
+
+        // Stored data still covers enough of the future; nothing new is likely to be published yet.
+        if (bounds != null && bounds.Value.MaxUtc > DateTime.UtcNow.AddHours(RefreshLookaheadHours))
+        {
+            return;
+        }
+
+        // Throttle to at most one attempt per hour, so a failing or not-yet-updated API is not hammered.
+        var currentHour = DateTime.UtcNow.Floor();
+
+        if (currentHour <= _lastUpdate)
+        {
+            return;
+        }
+
+        _lastUpdate = currentHour;
+
+        try
+        {
+            _logger.LogInformation("Stored prices are stale. Fetching new data from the API.");
+
+            var priceList = await MakePriceRequestAsync();
+
+            if (priceList.Prices.Count == 0)
+            {
+                _logger.LogError("ENTSO-e API returned a valid document containing no usable prices. Check the configured domain.");
+
+                return;
+            }
+
+            await PersistAsync(priceList, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unable to fetch and persist price information.");
+        }
+    }
+
+    /// <summary>
+    /// Ensure stored prices reach back at least to <paramref name="fromUtc"/>, fetching and persisting any missing
+    /// history from the API.
+    /// </summary>
+    /// <remarks>
+    /// A no-op when persistence is disabled, when the requested start is already covered by stored data, or when an
+    /// equally-early (or earlier) range has already been attempted this run — so a period the API has no data for is
+    /// requested at most once.
+    /// </remarks>
+    /// <param name="fromUtc">The desired earliest slot start, UTC.</param>
+    /// <param name="toUtc">The end of the requested window, UTC, used only when nothing is stored yet.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    public async Task EnsureRangeAsync(DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken = default)
+    {
+        if (!_persistenceOptions.Enabled)
+        {
+            return;
+        }
+
+        var bounds = await _repository.GetBoundsAsync(_endpointOptions.Domain, cancellationToken);
+
+        // Stored data already reaches back at least this far.
+        if (bounds != null && bounds.Value.MinUtc <= fromUtc)
+        {
+            return;
+        }
+
+        // A range starting this early (or earlier) has already been attempted, so don't ask again.
+        if (fromUtc >= _earliestBackfillUtc)
+        {
+            return;
+        }
+
+        _earliestBackfillUtc = fromUtc;
+
+        // Only the older slice is missing: fetch from the requested start up to whatever we already hold.
+        var fetchEndUtc = bounds?.MinUtc ?? toUtc;
+
+        try
+        {
+            _logger.LogInformation("Backfilling prices for domain {Domain} from {From} to {To}.", _endpointOptions.Domain, fromUtc, fetchEndUtc);
+
+            var priceList = await MakePriceRequestAsync(fromUtc.ToLocalTime(), fetchEndUtc.ToLocalTime());
+
+            if (priceList.Prices.Count == 0)
+            {
+                _logger.LogInformation("The API returned no prices for the requested history range.");
+
+                return;
+            }
+
+            await PersistAsync(priceList, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unable to backfill historical price information.");
+        }
+    }
+
+    private async Task PersistAsync(PriceList priceList, CancellationToken cancellationToken)
+    {
+        var points = new List<PricePoint>(priceList.Prices.Count);
+
+        foreach (var (localTime, price) in priceList.Prices)
+        {
+            points.Add(new PricePoint
+            {
+                Domain = _endpointOptions.Domain,
+                Currency = StoredCurrency,
+                Price = price,
+                DateBegin = localTime.ToUniversalTime(),
+                DateEnd = localTime.AddMinutes(StoredResolutionMinutes).ToUniversalTime()
+            });
+        }
+
+        await _repository.UpsertManyAsync(points, cancellationToken);
+
+        _logger.LogInformation("Persisted {Count} price slots for domain {Domain}.", points.Count, _endpointOptions.Domain);
     }
 
     /// <summary>
@@ -214,14 +365,16 @@ internal class PriceContainer
     }
 
     /// <summary>
-    /// Price list for testing and when API is not available.
+    /// Price list for testing and when the API is not available.
     /// </summary>
+    /// <param name="startLocal">The inclusive local start of the generated range.</param>
+    /// <param name="endLocal">The exclusive local end of the generated range.</param>
     /// <returns>A testing price list.</returns>
-    private PriceList GenerateTestPrices()
+    private PriceList GenerateTestPrices(DateTime startLocal, DateTime endLocal)
     {
         var prices = new SortedList<DateTime, decimal>();
 
-        for (var date = DateTime.UtcNow.AddDays(-1).Floor(); date < DateTime.UtcNow.AddDays(1.5).Floor(); date += TimeSpan.FromMinutes(15))
+        for (var date = startLocal.Floor(); date < endLocal.Floor(); date += TimeSpan.FromMinutes(15))
         {
             if (_rand.NextDouble() < 0.9)
             {
@@ -261,11 +414,14 @@ internal class PriceContainer
         };
     }
 
-    private async Task<PriceList> MakePriceRequestAsync()
+    private async Task<PriceList> MakePriceRequestAsync(DateTime? periodStartLocal = null, DateTime? periodEndLocal = null)
     {
+        var startLocal = (periodStartLocal ?? DateTime.Now.AddDays(-1)).Floor();
+        var endLocal = (periodEndLocal ?? DateTime.Now.AddDays(1)).Floor();
+
         if (_endpointOptions.GenerateTestData)
         {
-            return GenerateTestPrices();
+            return GenerateTestPrices(startLocal, endLocal);
         }
 
         using HttpClient httpClient = new();
@@ -274,8 +430,8 @@ internal class PriceContainer
             "api",
             new Dictionary<string, string?>
             {
-                { "periodStart", GetDateTimeFormatString(DateTime.Now.AddDays(-1).Floor()) },
-                { "periodEnd", GetDateTimeFormatString(DateTime.Now.AddDays(1).Floor()) },
+                { "periodStart", GetDateTimeFormatString(startLocal) },
+                { "periodEnd", GetDateTimeFormatString(endLocal) },
                 { "securityToken", _endpointOptions.ApiKey },
                 { "documentType", _endpointOptions.DocumentType },
                 { "in_Domain", _endpointOptions.Domain },

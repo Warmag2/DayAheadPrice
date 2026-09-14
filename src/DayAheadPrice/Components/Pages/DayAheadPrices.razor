@@ -1,5 +1,6 @@
-﻿@using DayAheadPrice.Components.Elements
+@using DayAheadPrice.Components.Elements
 @using DayAheadPrice.Entities
+@using DayAheadPrice.Enums
 @using DayAheadPrice.Extensions
 @using DayAheadPrice.Logic
 @using DayAheadPrice.Options
@@ -7,30 +8,21 @@
 @using static DayAheadPrice.Logic.GridScaleSelector
 @inject PriceContainer _priceContainer
 @inject IOptions<PricingOptions> _pricingOptions
-@inject NavigationManager _navigationManager
+@inject IOptions<PersistenceOptions> _persistenceOptions
 @page "/"
-@* InteractiveServer is not needed for this page. All mouse/touch event handlers call
-   a plain JavaScript function (setPriceData) via an inline string attribute, so no
-   Blazor circuit is required to handle them. Removing InteractiveServer means the page
-   is rendered once on the server and sent as static HTML — no persistent SignalR
-   WebSocket connection is kept open per visitor, which saves ~250KB+ of server-side
-   circuit memory per connected user.
-@rendermode InteractiveServer *@
+@rendermode InteractiveServer
 
 <PageTitle>Day-ahead electricity prices (Finland)</PageTitle>
 
-@{
-    var prices = _priceList?.GetPrices(_margin, _vat);
+@if (_persistenceOptions.Value.Enabled)
+{
+    @* Price history is stored: the interactive explorer owns the page and drives its zoom/pan
+       position through the "z" and "a" query parameters supplied to this route. *@
+    <PriceExplorer Zoom="Zoom" Anchor="Anchor" Theme="@ResolvedTheme" Margin="ResolvedMargin" Vat="ResolvedVat" />
 }
-
-<script>
-    function setPriceData(_, priceString, timeString) {
-        document.getElementById("TimeHeader").innerHTML = timeString;
-        document.getElementById("PriceHeader").innerHTML = priceString;
-    }
-</script>
-
-<div class="fullwidth page" data-theme="@_theme">
+else
+{
+<div class="fullwidth page" data-theme="@ResolvedTheme">
     <div id="TimeHeader" class="pageheader">
         @_timeString
     </div>
@@ -39,7 +31,7 @@
         @_priceString
     </div>
 
-    @if (prices != null && prices.Any())
+    @if (_priceList?.GetPrices(ResolvedMargin, ResolvedVat) is { Count: > 0 } prices)
     {
         @* The fetch failed but the cached prices still cover future time, so show them with a warning. *@
         @if (_fetchStatus != PriceFetchStatus.Success)
@@ -67,13 +59,30 @@
         </p>
     }
 </div>
+}
 
 @code {
-    private PriceList? _priceList = null;
+    [SupplyParameterFromQuery(Name = "z")]
+    public int? Zoom { get; set; }
+
+    [SupplyParameterFromQuery(Name = "a")]
+    public long? Anchor { get; set; }
+
+    [SupplyParameterFromQuery(Name = "theme")]
+    public string? Theme { get; set; }
+
+    [SupplyParameterFromQuery(Name = "margin")]
+    public decimal? Margin { get; set; }
+
+    [SupplyParameterFromQuery(Name = "vat")]
+    public decimal? Vat { get; set; }
+
+    private string ResolvedTheme => Theme is "light" or "dark" ? Theme : "dark";
+    private decimal ResolvedMargin => Margin ?? _pricingOptions.Value.Margin;
+    private decimal ResolvedVat => Vat ?? _pricingOptions.Value.Vat;
+
+    private PriceList? _priceList;
     private PriceFetchStatus _fetchStatus = PriceFetchStatus.Success;
-    private string _theme = "dark";
-    private decimal _margin;
-    private decimal _vat;
 
     private string _timeString = string.Empty;
     private string _priceString = string.Empty;
@@ -104,28 +113,10 @@
 
     protected override async Task OnInitializedAsync()
     {
-        if (_navigationManager.TryGetQueryString<string>("theme", out var theme)
-            && (theme == "light" || theme == "dark"))
+        if (_persistenceOptions.Value.Enabled)
         {
-            _theme = theme;
-        }
-
-        if (_navigationManager.TryGetQueryString<decimal>("margin", out var margin))
-        {
-            _margin = margin;
-        }
-        else
-        {
-            _margin = _pricingOptions.Value.Margin;
-        }
-
-        if (_navigationManager.TryGetQueryString<decimal>("vat", out var vat))
-        {
-            _vat = vat;
-        }
-        else
-        {
-            _vat = _pricingOptions.Value.Vat;
+            // The interactive explorer is rendered instead; nothing to prepare here.
+            return;
         }
 
         var fetchResult = await _priceContainer.GetPriceListAsync();
@@ -135,10 +126,10 @@
 
         if (_priceList != null)
         {
-            var prices = _priceList.GetPrices(_margin, _vat);
-            var printValue = prices?.TryGetValue(DateTime.Now.Floor(FloorResolution.Quarter), out var value) == true ? value : 0m;
+            var prices = _priceList.GetPrices(ResolvedMargin, ResolvedVat);
+            var printValue = prices?.TryGetValue(DateTime.Now.Floor(CalendarUnit.Quarter), out var value) == true ? value : 0m;
             SetPriceString(printValue);
-            SetTimeString(DateTime.Now.Floor(FloorResolution.Quarter));
+            SetTimeString(DateTime.Now.Floor(CalendarUnit.Quarter));
         }
     }
 }

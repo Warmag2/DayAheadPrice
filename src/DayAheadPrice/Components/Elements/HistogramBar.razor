@@ -58,6 +58,12 @@
     [Parameter]
     public DateTime Time { get; set; }
 
+    /// <summary>
+    /// The exclusive end of the bar's time slot, used for the hover tooltip.
+    /// </summary>
+    [Parameter]
+    public DateTime End { get; set; }
+
     private string GetPriceString()
     {
         return $"{Price.ToString("0.00")}c/kWh";
@@ -65,6 +71,6 @@
 
     private string GetTimeString()
     {
-        return $"{Time.Month.ToString("00")}-{Time.Day.ToString("00")} \u23F2 {Time.Hour.ToString("00")}:{Time.Minute.ToString("00")} \u2014 {(Time.Hour).ToString("00")}:{(Time.Minute+14).ToString("00")}";
+        return DateTimeExtensions.DescribeSpan(Time, End);
     }
 }

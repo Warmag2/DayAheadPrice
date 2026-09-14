@@ -1,8 +1,13 @@
 using DayAheadPrice.Components;
+using DayAheadPrice.Data;
 using DayAheadPrice.Logic;
 using DayAheadPrice.Options;
+using DayAheadPrice.Repositories;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
+using RepositoryPrototype.Interfaces;
+using RepositoryPrototype.Options;
+using RepositoryPrototype.Providers;
 
 namespace DayAheadPrice;
 
@@ -25,6 +30,15 @@ internal static class Program
         // Custom services
         builder.Services.Configure<EndpointOptions>(builder.Configuration.GetSection("EndpointOptions"));
         builder.Services.Configure<PricingOptions>(builder.Configuration.GetSection("PricingOptions"));
+        builder.Services.Configure<PersistenceOptions>(builder.Configuration.GetSection("PersistenceOptions"));
+        builder.Services.Configure<SqlOptions>(builder.Configuration.GetSection("SqlOptions"));
+
+        // Price persistence (RepositoryPrototype-based PostgreSQL storage).
+        builder.Services.AddSingleton<IConnectionStringAccessor, PgSqlConnectionStringAccessor>();
+        builder.Services.AddSingleton<IDatabaseContextProvider<PriceDbContext>, PriceDbContextProvider>();
+        builder.Services.AddSingleton<PricePointRepository>();
+        builder.Services.AddSingleton<PriceSeriesService>();
+
         builder.Services.AddSingleton<PriceContainer>();
         builder.Services.AddDataProtection().SetApplicationName("DayAheadPrice").PersistKeysToFileSystem(new DirectoryInfo(builder.Configuration["DataProtectionKeysPath"] ?? "/app/dpkeys/"));
 
