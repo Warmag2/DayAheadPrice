@@ -37,6 +37,7 @@ internal static class Program
         builder.Services.AddSingleton<IConnectionStringAccessor, PgSqlConnectionStringAccessor>();
         builder.Services.AddSingleton<IDatabaseContextProvider<PriceDbContext>, PriceDbContextProvider>();
         builder.Services.AddSingleton<PricePointRepository>();
+        builder.Services.AddSingleton<LivePriceState>();
         builder.Services.AddSingleton<PriceSeriesService>();
 
         builder.Services.AddSingleton<PriceContainer>();

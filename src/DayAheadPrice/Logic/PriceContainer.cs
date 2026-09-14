@@ -23,13 +23,16 @@ internal class PriceContainer
     private readonly EndpointOptions _endpointOptions;
     private readonly PersistenceOptions _persistenceOptions;
     private readonly PricePointRepository _repository;
+    private readonly LivePriceState _liveState;
     private readonly ILogger<PriceContainer> _logger;
     private DateTime _lastUpdate = DateTime.MinValue;
     private PriceList _currentPriceList = new();
     private readonly Random _rand = new();
     private DateTime _earliestBackfillUtc = DateTime.MaxValue;
     private readonly List<GapAttempt> _gapAttempts = [];
+    private readonly Lock _gapLock = new();
     private static readonly TimeSpan GapRetryCooldown = TimeSpan.FromHours(6);
+    private static readonly TimeSpan MaxRequestSpan = TimeSpan.FromDays(31);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PriceContainer"/> class.
@@ -38,26 +41,46 @@ internal class PriceContainer
     /// <param name="endpointOptions">The endpoint options.</param>
     /// <param name="persistenceOptions">The persistence options.</param>
     /// <param name="repository">The price repository used when persistence is enabled.</param>
+    /// <param name="liveState">The shared live-view cache and freshness authority.</param>
     public PriceContainer(
         ILogger<PriceContainer> logger,
         IOptions<EndpointOptions> endpointOptions,
         IOptions<PersistenceOptions> persistenceOptions,
-        PricePointRepository repository)
+        PricePointRepository repository,
+        LivePriceState liveState)
     {
         _endpointOptions = endpointOptions.Value;
         _persistenceOptions = persistenceOptions.Value;
         _repository = repository;
+        _liveState = liveState;
         _logger = logger;
     }
 
     /// <summary>
-    /// A record of one gap-fill attempt, used to avoid repeatedly requesting ranges the API cannot satisfy.
+    /// A record of one gap-fill attempt, used to avoid repeatedly requesting ranges the API cannot satisfy and to
+    /// reserve an in-flight range so concurrent callers do not request it at the same time.
     /// </summary>
-    /// <param name="FromUtc">The attempted range start, UTC.</param>
-    /// <param name="ToUtc">The attempted range end, UTC.</param>
-    /// <param name="AttemptedAtUtc">When the attempt was made, UTC.</param>
-    /// <param name="Empty">Whether the API returned no data for the range.</param>
-    private readonly record struct GapAttempt(DateTime FromUtc, DateTime ToUtc, DateTime AttemptedAtUtc, bool Empty);
+    private sealed class GapAttempt
+    {
+        public GapAttempt(DateTime fromUtc, DateTime toUtc, DateTime attemptedAtUtc)
+        {
+            FromUtc = fromUtc;
+            ToUtc = toUtc;
+            AttemptedAtUtc = attemptedAtUtc;
+        }
+
+        /// <summary>Gets the attempted range start, UTC.</summary>
+        public DateTime FromUtc { get; }
+
+        /// <summary>Gets the attempted range end, UTC.</summary>
+        public DateTime ToUtc { get; }
+
+        /// <summary>Gets or sets when the attempt was made, UTC.</summary>
+        public DateTime AttemptedAtUtc { get; set; }
+
+        /// <summary>Gets or sets a value indicating whether the API returned no data for the range (a permanent skip).</summary>
+        public bool Empty { get; set; }
+    }
 
     /// <summary>
     /// Ensure the database holds current prices, fetching and persisting from the API only when the stored data
@@ -76,6 +99,12 @@ internal class PriceContainer
             return;
         }
 
+        // The cached live data still reaches far enough into the future; nothing to do and no database access needed.
+        if (_liveState.IsFresh)
+        {
+            return;
+        }
+
         var bounds = await _repository.GetBoundsAsync(_endpointOptions.Domain, cancellationToken);
 
         // Stored data still covers enough of the future; nothing new is likely to be published yet.
@@ -85,14 +114,10 @@ internal class PriceContainer
         }
 
         // Throttle to at most one attempt per hour, so a failing or not-yet-updated API is not hammered.
-        var currentHour = DateTime.UtcNow.Floor();
-
-        if (currentHour <= _lastUpdate)
+        if (!_liveState.TryBeginRefreshCheck())
         {
             return;
         }
-
-        _lastUpdate = currentHour;
 
         try
         {
@@ -112,6 +137,9 @@ internal class PriceContainer
             }
 
             await PersistAsync(priceList, cancellationToken);
+
+            // Newly fetched future data extends the window; drop the cached live snapshot so the next render reloads.
+            _liveState.Invalidate();
         }
         catch (Exception ex)
         {
@@ -183,8 +211,11 @@ internal class PriceContainer
     /// </summary>
     /// <remarks>
     /// A no-op when persistence is disabled. Only ranges wholly in the past are fetched here; near-future and
-    /// current data is the freshness path's responsibility. Each attempted range is remembered so a range the API
-    /// has no data for (or one just fetched) is not requested again until the retry cooldown elapses.
+    /// current data is the freshness path's responsibility. Each range is split into chunks of at most
+    /// <see cref="MaxRequestSpan"/> so a single request never asks the API for more than about a month. Every chunk
+    /// is reserved before it is requested, so concurrent callers (e.g. several users panning far back at once) never
+    /// issue the same request twice; a reserved or already-attempted chunk is skipped until the retry cooldown
+    /// elapses, and a chunk the API has no data for is skipped permanently.
     /// </remarks>
     /// <param name="gapsUtc">The missing ranges, each an inclusive start / exclusive end in UTC.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
@@ -209,31 +240,27 @@ internal class PriceContainer
                 continue;
             }
 
-            var toUtc = gapToUtc < nowUtc ? gapToUtc : nowUtc;
+            var gapEndUtc = gapToUtc < nowUtc ? gapToUtc : nowUtc;
 
-            if (toUtc <= gapFromUtc || ShouldSkipGap(gapFromUtc, toUtc, nowUtc))
+            for (var chunkFromUtc = gapFromUtc; chunkFromUtc < gapEndUtc;)
             {
-                continue;
-            }
+                var chunkToUtc = chunkFromUtc + MaxRequestSpan;
 
-            try
-            {
-                _logger.LogInformation("Filling price gap {From}..{To} for domain {Domain}.", gapFromUtc, toUtc, _endpointOptions.Domain);
-
-                var priceList = await MakePriceRequestAsync(gapFromUtc.ToLocalTime(), toUtc.ToLocalTime());
-                var empty = priceList.Prices.Count == 0;
-
-                _gapAttempts.Add(new GapAttempt(gapFromUtc, toUtc, nowUtc, empty));
-
-                if (!empty)
+                if (chunkToUtc > gapEndUtc)
                 {
-                    await PersistAsync(priceList, cancellationToken);
+                    chunkToUtc = gapEndUtc;
+                }
+
+                // Reserve the chunk under the lock before awaiting, so a concurrent caller sees it as in-flight and
+                // does not issue the same request.
+                var reservation = TryReserveGap(chunkFromUtc, chunkToUtc, nowUtc);
+
+                if (reservation != null && await FetchReservedChunkAsync(reservation, cancellationToken))
+                {
                     changed = true;
                 }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Unable to fill price gap {From}..{To}.", gapFromUtc, toUtc);
+
+                chunkFromUtc = chunkToUtc;
             }
         }
 
@@ -241,26 +268,77 @@ internal class PriceContainer
     }
 
     /// <summary>
-    /// Whether the given range should not be requested again yet: either a previous attempt found no data for it, or
-    /// it was attempted within the retry cooldown.
+    /// Reserve a chunk for fetching, or return <b>null</b> when it should be skipped because a matching range is
+    /// already reserved, was recently attempted, or is known to be empty.
     /// </summary>
-    /// <param name="fromUtc">The range start, UTC.</param>
-    /// <param name="toUtc">The range end, UTC.</param>
+    /// <param name="fromUtc">The chunk start, UTC.</param>
+    /// <param name="toUtc">The chunk end, UTC.</param>
     /// <param name="nowUtc">The current instant, UTC.</param>
-    /// <returns><b>True</b> when the range should be skipped.</returns>
-    private bool ShouldSkipGap(DateTime fromUtc, DateTime toUtc, DateTime nowUtc)
+    /// <returns>The reservation to fetch, or <b>null</b> to skip.</returns>
+    private GapAttempt? TryReserveGap(DateTime fromUtc, DateTime toUtc, DateTime nowUtc)
     {
-        foreach (var attempt in _gapAttempts)
+        lock (_gapLock)
         {
-            if (attempt.FromUtc <= fromUtc
-                && attempt.ToUtc >= toUtc
-                && (attempt.Empty || nowUtc - attempt.AttemptedAtUtc < GapRetryCooldown))
-            {
-                return true;
-            }
-        }
+            // Drop stale non-empty attempts so the list cannot grow without bound; empty attempts are permanent.
+            _gapAttempts.RemoveAll(a => !a.Empty && nowUtc - a.AttemptedAtUtc >= GapRetryCooldown);
 
-        return false;
+            foreach (var attempt in _gapAttempts)
+            {
+                if (attempt.FromUtc <= fromUtc && attempt.ToUtc >= toUtc)
+                {
+                    // Either permanently empty, or reserved/attempted within the cooldown: skip.
+                    return null;
+                }
+            }
+
+            var reservation = new GapAttempt(fromUtc, toUtc, nowUtc);
+            _gapAttempts.Add(reservation);
+
+            return reservation;
+        }
+    }
+
+    /// <summary>
+    /// Fetch and persist a reserved chunk, updating the reservation with the outcome.
+    /// </summary>
+    /// <param name="reservation">The reserved chunk.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns><b>True</b> when the chunk yielded new data that was persisted.</returns>
+    private async Task<bool> FetchReservedChunkAsync(GapAttempt reservation, CancellationToken cancellationToken)
+    {
+        try
+        {
+            _logger.LogInformation("Filling price gap {From}..{To} for domain {Domain}.", reservation.FromUtc, reservation.ToUtc, _endpointOptions.Domain);
+
+            var priceList = await MakePriceRequestAsync(reservation.FromUtc.ToLocalTime(), reservation.ToUtc.ToLocalTime());
+
+            lock (_gapLock)
+            {
+                reservation.AttemptedAtUtc = DateTime.UtcNow;
+                reservation.Empty = priceList.Prices.Count == 0;
+            }
+
+            if (priceList.Prices.Count == 0)
+            {
+                return false;
+            }
+
+            await PersistAsync(priceList, cancellationToken);
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unable to fill price gap {From}..{To}.", reservation.FromUtc, reservation.ToUtc);
+
+            // Keep the reservation (not empty) so the failed range honours the cooldown before it is retried.
+            lock (_gapLock)
+            {
+                reservation.AttemptedAtUtc = DateTime.UtcNow;
+            }
+
+            return false;
+        }
     }
 
     private async Task PersistAsync(PriceList priceList, CancellationToken cancellationToken)
