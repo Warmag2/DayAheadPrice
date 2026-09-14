@@ -4,7 +4,7 @@ RUN apk add --no-cache icu-libs
 ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
 WORKDIR /app
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build
+FROM dayaheadpricesdk:latest AS build
 WORKDIR /build
 COPY ["src/", "src/"]
 WORKDIR "/build/src/DayAheadPrice"
