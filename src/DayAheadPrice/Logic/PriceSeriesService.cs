@@ -134,7 +134,7 @@ internal class PriceSeriesService
             return EmptyView(level, zoomIndex, true);
         }
 
-        var fromLocal = DateTime.Now.Floor(CalendarUnit.Quarter).AddHours(-LiveHoursBefore);
+        var fromLocal = DateTime.Now.Floor(CalendarUnit.Hour).AddHours(-LiveHoursBefore);
         var toLocal = snapshot.MaxLocal > fromLocal ? snapshot.MaxLocal : fromLocal.AddDays(1);
 
         return new PriceView
@@ -171,7 +171,7 @@ internal class PriceSeriesService
         var minLocal = bounds.Value.MinUtc.ToLocalTime();
         var maxLocal = bounds.Value.MaxUtc.ToLocalTime();
 
-        var fromLocal = DateTime.Now.Floor(CalendarUnit.Quarter).AddHours(-LiveHoursBefore);
+        var fromLocal = DateTime.Now.Floor(CalendarUnit.Hour).AddHours(-LiveHoursBefore);
         var toLocal = maxLocal > fromLocal ? maxLocal : fromLocal.AddDays(1);
 
         var slots = await _repository.GetRangeAsync(
