@@ -18,6 +18,11 @@ internal class PriceSeriesService
     private readonly PriceContainer _container;
     private readonly EndpointOptions _endpointOptions;
 
+    // Raw (pre-margin/VAT) time-weighted averages for fully-covered, wholly-past bars, keyed by domain + resolution
+    // + local bar start. Such periods are immutable, so re-reads of coarse windows avoid rescanning thousands of raw
+    // rows. Cleared implicitly only by process restart.
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<AggregateKey, decimal> _aggregateCache = new();
+
     /// <summary>
     /// Initializes a new instance of the <see cref="PriceSeriesService"/> class.
     /// </summary>
@@ -103,15 +108,11 @@ internal class PriceSeriesService
             toLocal = level.Span.AddTo(fromLocal);
         }
 
-        var slots = await _repository.GetRangeAsync(
-            domain,
-            fromLocal.ToUniversalTime(),
-            toLocal.ToUniversalTime(),
-            cancellationToken);
+        var bars = await ResampleWindowAsync(domain, level.Resolution, fromLocal, toLocal, cancellationToken);
 
         return new PriceView
         {
-            Bars = Resample(slots, fromLocal, toLocal, level.Resolution),
+            Bars = bars,
             Resolution = level.Resolution,
             HeaderUnit = level.HeaderUnit,
             FromLocal = fromLocal,
@@ -234,65 +235,190 @@ internal class PriceSeriesService
     }
 
     /// <summary>
-    /// Resample stored slots onto a fixed-resolution grid, time-weighting the average where a bar spans several
-    /// slots and repeating a value where a bar is finer than the slot covering it.
+    /// Compute the contiguous time ranges within <paramref name="fromUtc"/>..<paramref name="toUtc"/> that no
+    /// stored slot covers.
     /// </summary>
     /// <param name="slots">The stored slots overlapping the window.</param>
+    /// <param name="fromUtc">The inclusive window start, UTC.</param>
+    /// <param name="toUtc">The exclusive window end, UTC.</param>
+    /// <returns>The missing ranges, ordered, each an inclusive start / exclusive end in UTC.</returns>
+    private static List<(DateTime FromUtc, DateTime ToUtc)> ComputeGaps(
+        IReadOnlyCollection<PricePoint> slots,
+        DateTime fromUtc,
+        DateTime toUtc)
+    {
+        var gaps = new List<(DateTime FromUtc, DateTime ToUtc)>();
+        var cursor = fromUtc;
+
+        var ordered = slots
+            .Where(s => s.DateBegin.HasValue && s.DateEnd.HasValue)
+            .Select(s => (Start: s.DateBegin!.Value, End: s.DateEnd!.Value))
+            .OrderBy(s => s.Start);
+
+        foreach (var slot in ordered)
+        {
+            if (slot.Start > cursor)
+            {
+                gaps.Add((cursor, slot.Start < toUtc ? slot.Start : toUtc));
+            }
+
+            if (slot.End > cursor)
+            {
+                cursor = slot.End;
+            }
+
+            if (cursor >= toUtc)
+            {
+                return gaps;
+            }
+        }
+
+        if (cursor < toUtc)
+        {
+            gaps.Add((cursor, toUtc));
+        }
+
+        return gaps;
+    }
+
+    /// <summary>
+    /// Produce the bars for a window, serving fully-covered past bars from the in-memory aggregate cache and reading
+    /// the database only for the span of bars still uncached. Any real holes inside the read span are filled from the
+    /// API before resampling.
+    /// </summary>
+    /// <param name="domain">The price domain.</param>
+    /// <param name="resolution">The width of one bar.</param>
     /// <param name="fromLocal">The inclusive local window start.</param>
     /// <param name="toLocal">The exclusive local window end.</param>
-    /// <param name="resolution">The width of one bar.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The bars, keyed by local start, omitting any bar with no data.</returns>
-    private static SortedList<DateTime, decimal> Resample(
-        IReadOnlyCollection<PricePoint> slots,
+    private async Task<SortedList<DateTime, decimal>> ResampleWindowAsync(
+        string domain,
+        CalendarStep resolution,
         DateTime fromLocal,
         DateTime toLocal,
-        CalendarStep resolution)
+        CancellationToken cancellationToken)
     {
+        var bars = new SortedList<DateTime, decimal>();
+        var uncached = new List<DateTime>();
+
+        for (var barStart = fromLocal; barStart < toLocal; barStart = resolution.AddTo(barStart))
+        {
+            if (_aggregateCache.TryGetValue(new AggregateKey(domain, resolution.Unit, resolution.Count, barStart), out var cached))
+            {
+                bars[barStart] = cached;
+            }
+            else
+            {
+                uncached.Add(barStart);
+            }
+        }
+
+        if (uncached.Count == 0)
+        {
+            return bars;
+        }
+
+        // Read (and gap-fill) only the contiguous span covering the bars we could not serve from cache.
+        var readFromLocal = uncached[0];
+        var readToLocal = resolution.AddTo(uncached[^1]);
+        var readFromUtc = readFromLocal.ToUniversalTime();
+        var readToUtc = readToLocal.ToUniversalTime();
+
+        var slots = await _repository.GetRangeAsync(domain, readFromUtc, readToUtc, cancellationToken);
+
+        // Fill any real holes inside the read span (e.g. a period nobody looked at) from the API, then re-read so the
+        // freshly fetched slots are rendered. FillGapsAsync only fetches past ranges and throttles repeats, so a
+        // healthy span (no gaps) costs nothing here.
+        var gaps = ComputeGaps(slots, readFromUtc, readToUtc);
+
+        if (gaps.Count > 0 && await _container.FillGapsAsync(gaps, cancellationToken))
+        {
+            slots = await _repository.GetRangeAsync(domain, readFromUtc, readToUtc, cancellationToken);
+        }
+
         var intervals = slots
             .Where(s => s.DateBegin.HasValue && s.DateEnd.HasValue)
             .Select(s => (Start: s.DateBegin!.Value.ToLocalTime(), End: s.DateEnd!.Value.ToLocalTime(), s.Price))
             .OrderBy(i => i.Start)
             .ToList();
 
-        var bars = new SortedList<DateTime, decimal>();
+        var nowUtc = DateTime.UtcNow;
 
-        for (var barStart = fromLocal; barStart < toLocal; barStart = resolution.AddTo(barStart))
+        foreach (var barStart in uncached)
         {
             var barEnd = resolution.AddTo(barStart);
-            decimal weighted = 0m;
-            long totalTicks = 0;
+            var (value, totalTicks) = ComputeBar(intervals, barStart, barEnd);
 
-            foreach (var interval in intervals)
+            if (totalTicks <= 0)
             {
-                if (interval.End <= barStart)
-                {
-                    continue;
-                }
-
-                if (interval.Start >= barEnd)
-                {
-                    break;
-                }
-
-                var overlapStart = interval.Start > barStart ? interval.Start : barStart;
-                var overlapEnd = interval.End < barEnd ? interval.End : barEnd;
-                var ticks = (overlapEnd - overlapStart).Ticks;
-
-                if (ticks <= 0)
-                {
-                    continue;
-                }
-
-                weighted += interval.Price * ticks;
-                totalTicks += ticks;
+                continue;
             }
 
-            if (totalTicks > 0)
+            bars[barStart] = value;
+
+            // Cache only a fully-covered bar that lies wholly in the past; such a period can no longer change, so a
+            // later re-read need not rescan its raw rows. A partially-covered or still-open bar is left uncached.
+            var fullyCovered = totalTicks == (barEnd - barStart).Ticks;
+
+            if (fullyCovered && barEnd.ToUniversalTime() <= nowUtc)
             {
-                bars[barStart] = weighted / totalTicks;
+                _aggregateCache[new AggregateKey(domain, resolution.Unit, resolution.Count, barStart)] = value;
             }
         }
 
         return bars;
     }
+
+    /// <summary>
+    /// Time-weighted average of the overlapping intervals for a single bar.
+    /// </summary>
+    /// <param name="intervals">The stored intervals, ordered by start.</param>
+    /// <param name="barStart">The inclusive local bar start.</param>
+    /// <param name="barEnd">The exclusive local bar end.</param>
+    /// <returns>The bar value and the total covered ticks (zero when no data overlaps the bar).</returns>
+    private static (decimal Value, long TotalTicks) ComputeBar(
+        List<(DateTime Start, DateTime End, decimal Price)> intervals,
+        DateTime barStart,
+        DateTime barEnd)
+    {
+        decimal weighted = 0m;
+        long totalTicks = 0;
+
+        foreach (var interval in intervals)
+        {
+            if (interval.End <= barStart)
+            {
+                continue;
+            }
+
+            if (interval.Start >= barEnd)
+            {
+                break;
+            }
+
+            var overlapStart = interval.Start > barStart ? interval.Start : barStart;
+            var overlapEnd = interval.End < barEnd ? interval.End : barEnd;
+            var ticks = (overlapEnd - overlapStart).Ticks;
+
+            if (ticks <= 0)
+            {
+                continue;
+            }
+
+            weighted += interval.Price * ticks;
+            totalTicks += ticks;
+        }
+
+        return totalTicks > 0 ? (weighted / totalTicks, totalTicks) : (0m, 0);
+    }
+
+    /// <summary>
+    /// Cache key for a computed aggregate: a specific bar (by local start) at a specific resolution for a domain.
+    /// </summary>
+    /// <param name="Domain">The price domain.</param>
+    /// <param name="Unit">The resolution unit.</param>
+    /// <param name="Count">The resolution count.</param>
+    /// <param name="BarStartLocal">The local bar start.</param>
+    private readonly record struct AggregateKey(string Domain, CalendarUnit Unit, int Count, DateTime BarStartLocal);
 }

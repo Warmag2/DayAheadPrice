@@ -28,6 +28,8 @@ internal class PriceContainer
     private PriceList _currentPriceList = new();
     private readonly Random _rand = new();
     private DateTime _earliestBackfillUtc = DateTime.MaxValue;
+    private readonly List<GapAttempt> _gapAttempts = [];
+    private static readonly TimeSpan GapRetryCooldown = TimeSpan.FromHours(6);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PriceContainer"/> class.
@@ -47,6 +49,15 @@ internal class PriceContainer
         _repository = repository;
         _logger = logger;
     }
+
+    /// <summary>
+    /// A record of one gap-fill attempt, used to avoid repeatedly requesting ranges the API cannot satisfy.
+    /// </summary>
+    /// <param name="FromUtc">The attempted range start, UTC.</param>
+    /// <param name="ToUtc">The attempted range end, UTC.</param>
+    /// <param name="AttemptedAtUtc">When the attempt was made, UTC.</param>
+    /// <param name="Empty">Whether the API returned no data for the range.</param>
+    private readonly record struct GapAttempt(DateTime FromUtc, DateTime ToUtc, DateTime AttemptedAtUtc, bool Empty);
 
     /// <summary>
     /// Ensure the database holds current prices, fetching and persisting from the API only when the stored data
@@ -87,7 +98,11 @@ internal class PriceContainer
         {
             _logger.LogInformation("Stored prices are stale. Fetching new data from the API.");
 
-            var priceList = await MakePriceRequestAsync();
+            // Fetch forward from the last stored slot (not a fixed window) so a long idle period cannot leave a
+            // hole between the old data and the freshly fetched block.
+            var startLocal = bounds != null ? bounds.Value.MaxUtc.ToLocalTime() : DateTime.Now.AddDays(-1);
+
+            var priceList = await MakePriceRequestAsync(startLocal, DateTime.Now.AddDays(1));
 
             if (priceList.Prices.Count == 0)
             {
@@ -161,6 +176,91 @@ internal class PriceContainer
         {
             _logger.LogError(ex, "Unable to backfill historical price information.");
         }
+    }
+
+    /// <summary>
+    /// Fill the given missing time ranges (UTC) by fetching them from the API and persisting the result.
+    /// </summary>
+    /// <remarks>
+    /// A no-op when persistence is disabled. Only ranges wholly in the past are fetched here; near-future and
+    /// current data is the freshness path's responsibility. Each attempted range is remembered so a range the API
+    /// has no data for (or one just fetched) is not requested again until the retry cooldown elapses.
+    /// </remarks>
+    /// <param name="gapsUtc">The missing ranges, each an inclusive start / exclusive end in UTC.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns><b>True</b> when at least one range yielded new data that was persisted.</returns>
+    public async Task<bool> FillGapsAsync(
+        IReadOnlyList<(DateTime FromUtc, DateTime ToUtc)> gapsUtc,
+        CancellationToken cancellationToken = default)
+    {
+        if (!_persistenceOptions.Enabled)
+        {
+            return false;
+        }
+
+        var nowUtc = DateTime.UtcNow;
+        var changed = false;
+
+        foreach (var (gapFromUtc, gapToUtc) in gapsUtc)
+        {
+            // The future is filled by the freshness path once the API publishes it; only backfill history here.
+            if (gapFromUtc >= nowUtc)
+            {
+                continue;
+            }
+
+            var toUtc = gapToUtc < nowUtc ? gapToUtc : nowUtc;
+
+            if (toUtc <= gapFromUtc || ShouldSkipGap(gapFromUtc, toUtc, nowUtc))
+            {
+                continue;
+            }
+
+            try
+            {
+                _logger.LogInformation("Filling price gap {From}..{To} for domain {Domain}.", gapFromUtc, toUtc, _endpointOptions.Domain);
+
+                var priceList = await MakePriceRequestAsync(gapFromUtc.ToLocalTime(), toUtc.ToLocalTime());
+                var empty = priceList.Prices.Count == 0;
+
+                _gapAttempts.Add(new GapAttempt(gapFromUtc, toUtc, nowUtc, empty));
+
+                if (!empty)
+                {
+                    await PersistAsync(priceList, cancellationToken);
+                    changed = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unable to fill price gap {From}..{To}.", gapFromUtc, toUtc);
+            }
+        }
+
+        return changed;
+    }
+
+    /// <summary>
+    /// Whether the given range should not be requested again yet: either a previous attempt found no data for it, or
+    /// it was attempted within the retry cooldown.
+    /// </summary>
+    /// <param name="fromUtc">The range start, UTC.</param>
+    /// <param name="toUtc">The range end, UTC.</param>
+    /// <param name="nowUtc">The current instant, UTC.</param>
+    /// <returns><b>True</b> when the range should be skipped.</returns>
+    private bool ShouldSkipGap(DateTime fromUtc, DateTime toUtc, DateTime nowUtc)
+    {
+        foreach (var attempt in _gapAttempts)
+        {
+            if (attempt.FromUtc <= fromUtc
+                && attempt.ToUtc >= toUtc
+                && (attempt.Empty || nowUtc - attempt.AttemptedAtUtc < GapRetryCooldown))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private async Task PersistAsync(PriceList priceList, CancellationToken cancellationToken)

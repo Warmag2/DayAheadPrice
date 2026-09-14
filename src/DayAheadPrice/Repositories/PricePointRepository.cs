@@ -105,10 +105,16 @@ internal class PricePointRepository : TemporalRepositoryBase<PriceDbContext, lon
             }
             else
             {
-                stored.Price = incoming.Price;
-                stored.DateEnd = incoming.DateEnd;
-                stored.Currency = incoming.Currency;
-                await UpdateAsync(stored, cancellationToken);
+                // Prices are effectively immutable once published, so only write when something actually differs.
+                // This keeps re-fetching an overlapping window from churning rows (and bumping their concurrency
+                // version) for no reason.
+                if (stored.Price != incoming.Price || stored.DateEnd != incoming.DateEnd || stored.Currency != incoming.Currency)
+                {
+                    stored.Price = incoming.Price;
+                    stored.DateEnd = incoming.DateEnd;
+                    stored.Currency = incoming.Currency;
+                    await UpdateAsync(stored, cancellationToken);
+                }
             }
         }
     }
