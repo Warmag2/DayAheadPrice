@@ -16,6 +16,11 @@ services:
     networks:
       - dayaheadpricenet
     restart: on-failure
+    logging:
+      driver: k8s-file
+      options:
+        path: /var/log/containers/dayaheadprice.log
+        max-size: 4mb
 
 networks:
   dayaheadpricenet:
