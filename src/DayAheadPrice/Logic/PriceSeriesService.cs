@@ -16,6 +16,7 @@ internal class PriceSeriesService
 
     private readonly PricePointRepository _repository;
     private readonly PriceContainer _container;
+    private readonly LivePriceState _liveState;
     private readonly EndpointOptions _endpointOptions;
 
     // Raw (pre-margin/VAT) time-weighted averages for fully-covered, wholly-past bars, keyed by domain + resolution
@@ -28,11 +29,17 @@ internal class PriceSeriesService
     /// </summary>
     /// <param name="repository">The price repository.</param>
     /// <param name="container">The price container, used to backfill missing history from the API.</param>
+    /// <param name="liveState">The shared live-view cache and freshness authority.</param>
     /// <param name="endpointOptions">The endpoint options, supplying the domain to read.</param>
-    public PriceSeriesService(PricePointRepository repository, PriceContainer container, IOptions<EndpointOptions> endpointOptions)
+    public PriceSeriesService(
+        PricePointRepository repository,
+        PriceContainer container,
+        LivePriceState liveState,
+        IOptions<EndpointOptions> endpointOptions)
     {
         _repository = repository;
         _container = container;
+        _liveState = liveState;
         _endpointOptions = endpointOptions.Value;
     }
 
@@ -48,65 +55,50 @@ internal class PriceSeriesService
         var level = ZoomLevels.All[state.ZoomIndex];
         var isLive = state.ZoomIndex == ZoomLevels.FinestIndex && state.AnchorLocal == null;
 
+        // The live view is served from an in-memory snapshot so the most-requested page never touches the database
+        // while the cached data is still fresh (reaches far enough into the future).
+        if (isLive)
+        {
+            return await RenderLiveAsync(domain, level, state.ZoomIndex, cancellationToken);
+        }
+
         // For a positioned (non-live) view, make sure the history it wants is stored, fetching it from the API when
         // the user has panned or zoomed back past what we hold. A little extra is fetched beyond the window edge so
         // that panning further left keeps revealing older data rather than stopping at the first gap.
-        if (!isLive)
-        {
-            var wantFrom = (state.AnchorLocal ?? DateTime.Now).Floor(level.AlignUnit);
-            var wantTo = level.Span.AddTo(wantFrom);
+        var wantFrom = (state.AnchorLocal ?? DateTime.Now).Floor(level.AlignUnit);
+        var wantTo = level.Span.AddTo(wantFrom);
 
-            await _container.EnsureRangeAsync(
-                level.Span.SubtractFrom(wantFrom).ToUniversalTime(),
-                wantTo.ToUniversalTime(),
-                cancellationToken);
-        }
+        await _container.EnsureRangeAsync(
+            level.Span.SubtractFrom(wantFrom).ToUniversalTime(),
+            wantTo.ToUniversalTime(),
+            cancellationToken);
 
         var bounds = await _repository.GetBoundsAsync(domain, cancellationToken);
 
         if (bounds == null)
         {
-            return new PriceView
-            {
-                Resolution = level.Resolution,
-                HeaderUnit = level.HeaderUnit,
-                FromLocal = DateTime.Now.Floor(CalendarUnit.Quarter),
-                ToLocal = DateTime.Now.Floor(CalendarUnit.Quarter),
-                ZoomIndex = state.ZoomIndex,
-                IsLive = isLive
-            };
+            return EmptyView(level, state.ZoomIndex, false);
         }
 
         var minLocal = bounds.Value.MinUtc.ToLocalTime();
         var maxLocal = bounds.Value.MaxUtc.ToLocalTime();
 
-        DateTime fromLocal;
-        DateTime toLocal;
+        var anchor = state.AnchorLocal ?? DateTime.Now;
+        var fromLocal = anchor.Floor(level.AlignUnit);
 
-        if (isLive)
+        var earliestStart = minLocal.Floor(level.AlignUnit);
+        var latestStart = maxLocal.Floor(level.AlignUnit);
+
+        if (fromLocal < earliestStart)
         {
-            fromLocal = DateTime.Now.Floor(CalendarUnit.Quarter).AddHours(-LiveHoursBefore);
-            toLocal = maxLocal > fromLocal ? maxLocal : fromLocal.AddDays(1);
+            fromLocal = earliestStart;
         }
-        else
+        else if (fromLocal > latestStart)
         {
-            var anchor = state.AnchorLocal ?? DateTime.Now;
-            fromLocal = anchor.Floor(level.AlignUnit);
-
-            var earliestStart = minLocal.Floor(level.AlignUnit);
-            var latestStart = maxLocal.Floor(level.AlignUnit);
-
-            if (fromLocal < earliestStart)
-            {
-                fromLocal = earliestStart;
-            }
-            else if (fromLocal > latestStart)
-            {
-                fromLocal = latestStart;
-            }
-
-            toLocal = level.Span.AddTo(fromLocal);
+            fromLocal = latestStart;
         }
+
+        var toLocal = level.Span.AddTo(fromLocal);
 
         var bars = await ResampleWindowAsync(domain, level.Resolution, fromLocal, toLocal, cancellationToken);
 
@@ -118,9 +110,105 @@ internal class PriceSeriesService
             FromLocal = fromLocal,
             ToLocal = toLocal,
             ZoomIndex = state.ZoomIndex,
-            IsLive = isLive,
+            IsLive = false,
             CanPanLeft = fromLocal > minLocal,
             CanPanRight = toLocal < maxLocal
+        };
+    }
+
+    /// <summary>
+    /// Render the live (current) window, serving from the in-memory snapshot while it is fresh and otherwise
+    /// reloading it once from the database.
+    /// </summary>
+    /// <param name="domain">The price domain.</param>
+    /// <param name="level">The (finest) zoom level.</param>
+    /// <param name="zoomIndex">The zoom index.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The rendered live view.</returns>
+    private async Task<PriceView> RenderLiveAsync(string domain, ZoomLevel level, int zoomIndex, CancellationToken cancellationToken)
+    {
+        var snapshot = _liveState.IsFresh ? _liveState.Current : await RefreshLiveSnapshotAsync(domain, cancellationToken);
+
+        if (snapshot == null)
+        {
+            return EmptyView(level, zoomIndex, true);
+        }
+
+        var fromLocal = DateTime.Now.Floor(CalendarUnit.Quarter).AddHours(-LiveHoursBefore);
+        var toLocal = snapshot.MaxLocal > fromLocal ? snapshot.MaxLocal : fromLocal.AddDays(1);
+
+        return new PriceView
+        {
+            Bars = ResampleIntervals(snapshot.Intervals, fromLocal, toLocal, level.Resolution),
+            Resolution = level.Resolution,
+            HeaderUnit = level.HeaderUnit,
+            FromLocal = fromLocal,
+            ToLocal = toLocal,
+            ZoomIndex = zoomIndex,
+            IsLive = true,
+            CanPanLeft = fromLocal > snapshot.MinLocal,
+            CanPanRight = false
+        };
+    }
+
+    /// <summary>
+    /// Reload the live snapshot from the database (bounds plus the slots covering the live window) and cache it.
+    /// </summary>
+    /// <param name="domain">The price domain.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The new snapshot, or <b>null</b> when nothing is stored for the domain.</returns>
+    private async Task<LiveSnapshot?> RefreshLiveSnapshotAsync(string domain, CancellationToken cancellationToken)
+    {
+        var bounds = await _repository.GetBoundsAsync(domain, cancellationToken);
+
+        if (bounds == null)
+        {
+            _liveState.Invalidate();
+
+            return null;
+        }
+
+        var minLocal = bounds.Value.MinUtc.ToLocalTime();
+        var maxLocal = bounds.Value.MaxUtc.ToLocalTime();
+
+        var fromLocal = DateTime.Now.Floor(CalendarUnit.Quarter).AddHours(-LiveHoursBefore);
+        var toLocal = maxLocal > fromLocal ? maxLocal : fromLocal.AddDays(1);
+
+        var slots = await _repository.GetRangeAsync(
+            domain,
+            fromLocal.ToUniversalTime(),
+            toLocal.ToUniversalTime(),
+            cancellationToken);
+
+        var intervals = slots
+            .Where(s => s.DateBegin.HasValue && s.DateEnd.HasValue)
+            .Select(s => (StartLocal: s.DateBegin!.Value.ToLocalTime(), EndLocal: s.DateEnd!.Value.ToLocalTime(), s.Price))
+            .OrderBy(i => i.StartLocal)
+            .ToList();
+
+        var snapshot = new LiveSnapshot(minLocal, maxLocal, intervals);
+        _liveState.Set(snapshot);
+
+        return snapshot;
+    }
+
+    /// <summary>
+    /// An empty view anchored at the current quarter, used when nothing is stored for the domain.
+    /// </summary>
+    /// <param name="level">The zoom level.</param>
+    /// <param name="zoomIndex">The zoom index.</param>
+    /// <param name="isLive">Whether the view is the live view.</param>
+    /// <returns>The empty view.</returns>
+    private static PriceView EmptyView(ZoomLevel level, int zoomIndex, bool isLive)
+    {
+        return new PriceView
+        {
+            Resolution = level.Resolution,
+            HeaderUnit = level.HeaderUnit,
+            FromLocal = DateTime.Now.Floor(CalendarUnit.Quarter),
+            ToLocal = DateTime.Now.Floor(CalendarUnit.Quarter),
+            ZoomIndex = zoomIndex,
+            IsLive = isLive
         };
     }
 
@@ -371,6 +459,37 @@ internal class PriceSeriesService
     }
 
     /// <summary>
+    /// Resample a set of local-time intervals onto a fixed-resolution grid, without any database access or caching.
+    /// Used for the live view, whose intervals come from the in-memory snapshot.
+    /// </summary>
+    /// <param name="intervals">The intervals, ordered by start, in local time.</param>
+    /// <param name="fromLocal">The inclusive local window start.</param>
+    /// <param name="toLocal">The exclusive local window end.</param>
+    /// <param name="resolution">The width of one bar.</param>
+    /// <returns>The bars, keyed by local start, omitting any bar with no data.</returns>
+    private static SortedList<DateTime, decimal> ResampleIntervals(
+        IReadOnlyList<(DateTime StartLocal, DateTime EndLocal, decimal Price)> intervals,
+        DateTime fromLocal,
+        DateTime toLocal,
+        CalendarStep resolution)
+    {
+        var bars = new SortedList<DateTime, decimal>();
+
+        for (var barStart = fromLocal; barStart < toLocal; barStart = resolution.AddTo(barStart))
+        {
+            var barEnd = resolution.AddTo(barStart);
+            var (value, totalTicks) = ComputeBar(intervals, barStart, barEnd);
+
+            if (totalTicks > 0)
+            {
+                bars[barStart] = value;
+            }
+        }
+
+        return bars;
+    }
+
+    /// <summary>
     /// Time-weighted average of the overlapping intervals for a single bar.
     /// </summary>
     /// <param name="intervals">The stored intervals, ordered by start.</param>
@@ -378,7 +497,7 @@ internal class PriceSeriesService
     /// <param name="barEnd">The exclusive local bar end.</param>
     /// <returns>The bar value and the total covered ticks (zero when no data overlaps the bar).</returns>
     private static (decimal Value, long TotalTicks) ComputeBar(
-        List<(DateTime Start, DateTime End, decimal Price)> intervals,
+        IReadOnlyList<(DateTime Start, DateTime End, decimal Price)> intervals,
         DateTime barStart,
         DateTime barEnd)
     {

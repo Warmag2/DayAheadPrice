@@ -23,6 +23,7 @@ internal class PriceContainer
     private readonly EndpointOptions _endpointOptions;
     private readonly PersistenceOptions _persistenceOptions;
     private readonly PricePointRepository _repository;
+    private readonly LivePriceState _liveState;
     private readonly ILogger<PriceContainer> _logger;
     private DateTime _lastUpdate = DateTime.MinValue;
     private PriceList _currentPriceList = new();
@@ -40,15 +41,18 @@ internal class PriceContainer
     /// <param name="endpointOptions">The endpoint options.</param>
     /// <param name="persistenceOptions">The persistence options.</param>
     /// <param name="repository">The price repository used when persistence is enabled.</param>
+    /// <param name="liveState">The shared live-view cache and freshness authority.</param>
     public PriceContainer(
         ILogger<PriceContainer> logger,
         IOptions<EndpointOptions> endpointOptions,
         IOptions<PersistenceOptions> persistenceOptions,
-        PricePointRepository repository)
+        PricePointRepository repository,
+        LivePriceState liveState)
     {
         _endpointOptions = endpointOptions.Value;
         _persistenceOptions = persistenceOptions.Value;
         _repository = repository;
+        _liveState = liveState;
         _logger = logger;
     }
 
@@ -95,6 +99,12 @@ internal class PriceContainer
             return;
         }
 
+        // The cached live data still reaches far enough into the future; nothing to do and no database access needed.
+        if (_liveState.IsFresh)
+        {
+            return;
+        }
+
         var bounds = await _repository.GetBoundsAsync(_endpointOptions.Domain, cancellationToken);
 
         // Stored data still covers enough of the future; nothing new is likely to be published yet.
@@ -104,14 +114,10 @@ internal class PriceContainer
         }
 
         // Throttle to at most one attempt per hour, so a failing or not-yet-updated API is not hammered.
-        var currentHour = DateTime.UtcNow.Floor();
-
-        if (currentHour <= _lastUpdate)
+        if (!_liveState.TryBeginRefreshCheck())
         {
             return;
         }
-
-        _lastUpdate = currentHour;
 
         try
         {
@@ -131,6 +137,9 @@ internal class PriceContainer
             }
 
             await PersistAsync(priceList, cancellationToken);
+
+            // Newly fetched future data extends the window; drop the cached live snapshot so the next render reloads.
+            _liveState.Invalidate();
         }
         catch (Exception ex)
         {
