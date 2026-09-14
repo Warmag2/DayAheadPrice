@@ -310,3 +310,74 @@ p.fetchwarning {
     font-size: min(2vh, 2vw);
     opacity: 0.75;
 }
+
+div.explorertopbar {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 0.5em;
+    max-height: 20vh;
+}
+
+div.explorerheaders {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex: 1;
+    min-width: 0;
+}
+
+div.explorertopbar .pageheader {
+    font-size: min(4vh, 4vw);
+}
+
+div.explorercontrols {
+    display: grid;
+    grid-template-columns: repeat(3, auto);
+    grid-template-rows: repeat(2, 1fr);
+    gap: 3px;
+    padding: 0.3em;
+    align-content: center;
+}
+
+button.explorerbutton {
+    font-family: monospace;
+    font-size: min(2.2vh, 2.2vw);
+    line-height: 1;
+    min-width: 2em;
+    padding: 0.15em 0.35em;
+    cursor: pointer;
+    color: var(--color-text);
+    background-color: transparent;
+    border: 1px solid var(--color-grid);
+    border-radius: 4px;
+}
+
+button.ctl-up {
+    grid-column: 2;
+    grid-row: 1;
+}
+
+button.ctl-left {
+    grid-column: 1;
+    grid-row: 2;
+}
+
+button.ctl-down {
+    grid-column: 2;
+    grid-row: 2;
+}
+
+button.ctl-right {
+    grid-column: 3;
+    grid-row: 2;
+}
+
+button.explorerbutton:hover:enabled {
+    background-color: var(--color-hover);
+}
+
+button.explorerbutton:disabled {
+    opacity: 0.35;
+    cursor: default;
+}

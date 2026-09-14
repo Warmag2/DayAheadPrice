@@ -1,0 +1,251 @@
+@using DayAheadPrice.Components.Elements
+@using DayAheadPrice.Entities
+@using DayAheadPrice.Extensions
+@using DayAheadPrice.Logic
+@using DayAheadPrice.Options
+@using Microsoft.Extensions.Options
+@using static DayAheadPrice.Logic.GridScaleSelector
+@implements IAsyncDisposable
+@inject PriceContainer _priceContainer
+@inject PriceSeriesService _priceSeriesService
+@inject NavigationManager _navigationManager
+@inject IJSRuntime _js
+
+<div class="fullwidth page explorer" data-theme="@(Theme is "light" or "dark" ? Theme : "dark")">
+    <div class="explorertopbar">
+        <div class="explorercontrols">
+            <button type="button" class="explorerbutton ctl-up" disabled=@(_view == null || !_view.ZoomIndex.CanZoomIn()) @onclick="ZoomIn" title="Zoom in">&#9650;</button>
+            <button type="button" class="explorerbutton ctl-left" disabled=@(_view?.CanPanLeft != true) @onclick="PanLeft" title="Back in time">&#9664;</button>
+            <button type="button" class="explorerbutton ctl-down" disabled=@(_view == null || !_view.ZoomIndex.CanZoomOut()) @onclick="ZoomOut" title="Zoom out">&#9660;</button>
+            <button type="button" class="explorerbutton ctl-right" disabled=@(_view?.CanPanRight != true) @onclick="PanRight" title="Forward in time">&#9654;</button>
+        </div>
+
+        <div class="explorerheaders">
+            <div id="TimeHeader" class="pageheader">
+                @_timeString
+            </div>
+
+            <div id="PriceHeader" class="pageheader">
+                @_priceString
+            </div>
+        </div>
+    </div>
+
+    @if (_view != null && _view.HasData)
+    {
+        <div class="fullwidth pagecontent">
+            <Histogram Max=@_ceilPrice Min=@_floorPrice Prices=@_adjustedPrices Resolution=@_view.Resolution HeaderUnit=@_view.HeaderUnit />
+        </div>
+    }
+    else
+    {
+        <p class="fetchwarning">
+            No stored prices to display yet.
+        </p>
+    }
+</div>
+
+@code {
+    /// <summary>The zoom level index, from the "z" query parameter; <b>null</b> means the finest (live) level.</summary>
+    [Parameter]
+    public int? Zoom { get; set; }
+
+    /// <summary>The window anchor as local-time ticks, from the "a" query parameter; <b>null</b> means the live view.</summary>
+    [Parameter]
+    public long? Anchor { get; set; }
+
+    /// <summary>The colour theme ("light" or "dark").</summary>
+    [Parameter]
+    public string? Theme { get; set; }
+
+    /// <summary>The operator margin applied to raw prices (c/kWh).</summary>
+    [Parameter]
+    public decimal Margin { get; set; }
+
+    /// <summary>The VAT multiplier applied to raw prices (0.255 => 25.5%).</summary>
+    [Parameter]
+    public decimal Vat { get; set; }
+
+    private DotNetObjectReference<PriceExplorer>? _selfRef;
+    private PriceView? _view;
+    private SortedList<DateTime, decimal> _adjustedPrices = [];
+    private decimal _ceilPrice;
+    private decimal _floorPrice;
+
+    private string _timeString = string.Empty;
+    private string _priceString = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await _priceContainer.EnsureFreshAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await RenderStateAsync(CurrentState());
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _selfRef = DotNetObjectReference.Create(this);
+            await _js.InvokeVoidAsync("dapExplorer.register", _selfRef);
+        }
+
+        // Re-assert the headers after every view change so they show the first visible bar rather than staying on
+        // whatever bar was last hovered (hovering mutates the header DOM directly, out of Blazor's knowledge).
+        await _js.InvokeVoidAsync("setPriceData", null, _priceString, _timeString);
+    }
+
+    /// <summary>
+    /// Handle a navigation key forwarded from the document-level JavaScript listener.
+    /// </summary>
+    /// <param name="key">The pressed key.</param>
+    [JSInvokable]
+    public void HandleKey(string key)
+    {
+        switch (key)
+        {
+            case "ArrowLeft":
+                PanLeft();
+                break;
+            case "ArrowRight":
+                PanRight();
+                break;
+            case "ArrowUp":
+                ZoomIn();
+                break;
+            case "ArrowDown":
+                ZoomOut();
+                break;
+            case "End":
+                GoLive();
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Translate the incoming query parameters into a navigation state. An invalid or missing zoom falls back to the
+    /// finest level, and a missing anchor means the live view.
+    /// </summary>
+    private PriceViewState CurrentState()
+    {
+        var zoom = Zoom is int z && z >= ZoomLevels.FinestIndex && z <= ZoomLevels.CoarsestIndex
+            ? z
+            : ZoomLevels.FinestIndex;
+
+        DateTime? anchor = Anchor is long ticks && ticks >= DateTime.MinValue.Ticks && ticks <= DateTime.MaxValue.Ticks
+            ? new DateTime(ticks, DateTimeKind.Local)
+            : null;
+
+        return new PriceViewState(zoom, anchor);
+    }
+
+    private void PanLeft()
+    {
+        if (_view is { CanPanLeft: true })
+        {
+            Navigate(PriceSeriesService.PanLeft(_view));
+        }
+    }
+
+    private void PanRight()
+    {
+        if (_view is { CanPanRight: true })
+        {
+            Navigate(PriceSeriesService.PanRight(_view));
+        }
+    }
+
+    private void ZoomIn()
+    {
+        if (_view != null && _view.ZoomIndex.CanZoomIn())
+        {
+            Navigate(PriceSeriesService.ZoomIn(_view));
+        }
+    }
+
+    private void ZoomOut()
+    {
+        if (_view != null && _view.ZoomIndex.CanZoomOut())
+        {
+            Navigate(PriceSeriesService.ZoomOut(_view));
+        }
+    }
+
+    private void GoLive()
+    {
+        if (_view is { IsLive: false })
+        {
+            Navigate(PriceViewState.Live);
+        }
+    }
+
+    /// <summary>
+    /// Push the given navigation state into the URL. The route's query parameters flow back in as new component
+    /// parameters, which re-renders the view. The current history entry is replaced so panning does not fill the
+    /// browser back-stack.
+    /// </summary>
+    private void Navigate(PriceViewState state)
+    {
+        var isLive = state.ZoomIndex == ZoomLevels.FinestIndex && state.AnchorLocal == null;
+
+        var uri = _navigationManager.GetUriWithQueryParameters(new Dictionary<string, object?>
+        {
+            ["z"] = isLive ? null : state.ZoomIndex,
+            ["a"] = state.AnchorLocal.HasValue ? state.AnchorLocal.Value.Ticks : (long?)null
+        });
+
+        _navigationManager.NavigateTo(uri, forceLoad: false, replace: true);
+    }
+
+    private async Task RenderStateAsync(PriceViewState state)
+    {
+        _view = await _priceSeriesService.RenderAsync(state);
+
+        _adjustedPrices = [];
+
+        foreach (var (time, price) in _view.Bars)
+        {
+            _adjustedPrices.Add(time, price * (1m + Vat) + Margin);
+        }
+
+        if (_adjustedPrices.Count > 0)
+        {
+            var maxPrice = _adjustedPrices.Values.Max();
+            var minPrice = Math.Min(_adjustedPrices.Values.Min(), 0.0m);
+            var gridScale = GetGridScale((int)Math.Ceiling(maxPrice), (int)Math.Floor(minPrice));
+            _ceilPrice = (int)Math.Ceiling(maxPrice / gridScale) * gridScale;
+            _floorPrice = (int)Math.Floor(minPrice / gridScale) * gridScale;
+
+            // Reset the headers to the first visible bar so a view change immediately shows where we are, instead of
+            // whatever bar happened to be hovered before.
+            var first = _adjustedPrices.First();
+            _priceString = $"{first.Value.ToString("0.00")}c/kWh";
+            _timeString = DateTimeExtensions.DescribeSpan(first.Key, _view.Resolution.AddTo(first.Key));
+        }
+        else
+        {
+            _priceString = string.Empty;
+            _timeString = DateTimeExtensions.DescribeSpan(_view.FromLocal, _view.ToLocal);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_selfRef != null)
+        {
+            try
+            {
+                await _js.InvokeVoidAsync("dapExplorer.unregister");
+            }
+            catch (JSDisconnectedException)
+            {
+                // The circuit is already gone; nothing to clean up on the client.
+            }
+
+            _selfRef.Dispose();
+        }
+    }
+}

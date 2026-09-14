@@ -7,6 +7,7 @@ services:
     image: dayaheadprice:latest
     environment:
       ASPNETCORE_ENVIRONMENT: Release
+      ConnectionStrings__Database: "${CONNECTIONSTRING:?err}"
       EndpointOptions__ApiKey: "${ENTSOE_APIKEY:?err}"
       TZ: "Europe/Helsinki"
     ports:
