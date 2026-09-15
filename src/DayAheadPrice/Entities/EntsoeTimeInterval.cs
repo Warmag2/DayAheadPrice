@@ -1,4 +1,5 @@
-﻿using System.Globalization;
+﻿using System;
+using System.Globalization;
 using System.Xml.Serialization;
 
 namespace DayAheadPrice.Entities;

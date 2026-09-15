@@ -1,4 +1,5 @@
-﻿using DayAheadPrice.Enums;
+﻿using System;
+using DayAheadPrice.Enums;
 
 namespace DayAheadPrice.Extensions;
 

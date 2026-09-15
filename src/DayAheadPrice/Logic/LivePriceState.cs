@@ -1,6 +1,9 @@
-namespace DayAheadPrice.Logic;
-
+using System;
+using System.Collections.Generic;
+using System.Threading;
 using DayAheadPrice.Extensions;
+
+namespace DayAheadPrice.Logic;
 
 /// <summary>
 /// An in-memory snapshot of the slots covering the live (current) window.

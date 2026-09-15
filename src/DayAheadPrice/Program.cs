@@ -1,10 +1,14 @@
+using System.IO;
 using DayAheadPrice.Components;
-using DayAheadPrice.Data;
+using DayAheadPrice.Database.Contexts;
 using DayAheadPrice.Logic;
 using DayAheadPrice.Options;
 using DayAheadPrice.Repositories;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using RepositoryPrototype.Interfaces;
 using RepositoryPrototype.Options;
 using RepositoryPrototype.Providers;

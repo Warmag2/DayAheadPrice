@@ -1,4 +1,7 @@
-﻿using DayAheadPrice.Extensions;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using DayAheadPrice.Extensions;
 
 namespace DayAheadPrice.Entities;
 

@@ -4,10 +4,10 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace DayAheadPrice.Data.Migrations
+namespace DayAheadPrice.Database.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialPriceHistory : Migration
+    public partial class Initial : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -19,9 +19,8 @@ namespace DayAheadPrice.Data.Migrations
                     Id = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     Price = table.Column<decimal>(type: "numeric", nullable: false),
-                    Domain = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
-                    Currency = table.Column<string>(type: "character varying(8)", maxLength: 8, nullable: false),
-                    UniqueId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Domain = table.Column<string>(type: "character varying(16)", maxLength: 16, nullable: false),
+                    Currency = table.Column<string>(type: "character varying(3)", maxLength: 3, nullable: false),
                     xmin = table.Column<uint>(type: "xid", rowVersion: true, nullable: false),
                     UpdateTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     DateBegin = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
@@ -46,12 +45,6 @@ namespace DayAheadPrice.Data.Migrations
                 name: "IX_PricePoints_Domain_DateBegin",
                 table: "PricePoints",
                 columns: new[] { "Domain", "DateBegin" },
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_PricePoints_UniqueId",
-                table: "PricePoints",
-                column: "UniqueId",
                 unique: true);
         }
 

@@ -1,12 +1,12 @@
-using DayAheadPrice.Entities;
+using DayAheadPrice.Database.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace DayAheadPrice.Data;
+namespace DayAheadPrice.Database.Contexts;
 
 /// <summary>
 /// Database context for stored electricity prices.
 /// </summary>
-internal class PriceDbContext : DbContext
+public class PriceDbContext : DbContext
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="PriceDbContext"/> class.

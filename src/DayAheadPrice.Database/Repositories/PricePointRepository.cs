@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 using RepositoryPrototype.Interfaces;
 using RepositoryPrototype.Repositories;
 
-namespace DayAheadPrice.Repositories;
+namespace DayAheadPrice.Database.Repositories;
 
 /// <summary>
 /// Repository for stored electricity price slots.

@@ -1,3 +1,5 @@
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -5,12 +7,12 @@ using RepositoryPrototype.Interfaces;
 using RepositoryPrototype.Options;
 using RepositoryPrototype.Providers;
 
-namespace DayAheadPrice.Data;
+namespace DayAheadPrice.Database.Contexts;
 
 /// <summary>
 /// Provides <see cref="PriceDbContext"/> instances, creating and migrating the database on first use.
 /// </summary>
-internal class PriceDbContextProvider : PgSqlDatabaseContextProvider<PriceDbContext>
+public class PriceDbContextProvider : PgSqlDatabaseContextProvider<PriceDbContext>
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="PriceDbContextProvider"/> class.

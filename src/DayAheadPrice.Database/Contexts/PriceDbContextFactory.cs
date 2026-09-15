@@ -2,13 +2,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
 
-namespace DayAheadPrice.Data;
+namespace DayAheadPrice.Database.Contexts;
 
 /// <summary>
 /// This design time context factory is used by EF Core tooling to add/remove migrations without the
 /// connection multiplexing provider that the running application uses.
 /// </summary>
-internal class PriceDesignContextFactory : IDesignTimeDbContextFactory<PriceDbContext>
+public class PriceDesignContextFactory : IDesignTimeDbContextFactory<PriceDbContext>
 {
     /// <inheritdoc />
     public PriceDbContext CreateDbContext(string[] args)
@@ -25,7 +25,9 @@ internal class PriceDesignContextFactory : IDesignTimeDbContextFactory<PriceDbCo
         // Adding or removing migrations does not touch a database, so a placeholder is fine when none is set.
         if (string.IsNullOrWhiteSpace(connectionString))
         {
+#pragma warning disable S2068 // Credentials should not be hard-coded
             connectionString = "Host=localhost;Database=dayaheadprice;Username=postgres;Password=postgres";
+#pragma warning restore S2068 // Credentials should not be hard-coded
         }
 
         var optionsBuilder = new DbContextOptionsBuilder<PriceDbContext>();

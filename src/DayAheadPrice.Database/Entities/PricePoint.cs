@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using Microsoft.EntityFrameworkCore;
 using RepositoryPrototype.Entities;
 
-namespace DayAheadPrice.Entities;
+namespace DayAheadPrice.Database.Entities;
 
 /// <summary>
 /// A single stored electricity price slot.
@@ -24,13 +24,13 @@ public class PricePoint : TemporalEntityBase<long>
     /// The bidding zone / domain the price is for (for example <c>10YFI-1--------U</c>).
     /// </summary>
     [Required]
-    [MaxLength(64)]
+    [MaxLength(16)]
     public string Domain { get; set; } = string.Empty;
 
     /// <summary>
     /// The ISO currency the price is expressed in.
     /// </summary>
     [Required]
-    [MaxLength(8)]
+    [MaxLength(3)]
     public string Currency { get; set; } = "EUR";
 }

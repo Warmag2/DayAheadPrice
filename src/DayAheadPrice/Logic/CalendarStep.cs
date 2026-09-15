@@ -1,3 +1,4 @@
+using System;
 using DayAheadPrice.Enums;
 
 namespace DayAheadPrice.Logic;

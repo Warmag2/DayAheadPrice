@@ -1,3 +1,5 @@
+using System;
+
 namespace DayAheadPrice.Logic;
 
 /// <summary>
