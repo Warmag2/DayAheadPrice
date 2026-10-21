@@ -7,8 +7,8 @@ using DayAheadPrice.Database.Contexts;
 using DayAheadPrice.Database.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using RepositoryPrototype.Interfaces;
-using RepositoryPrototype.Repositories;
+using Faemiyah.Repository.Interfaces;
+using Faemiyah.Repository.Repositories;
 
 namespace DayAheadPrice.Repositories;
 

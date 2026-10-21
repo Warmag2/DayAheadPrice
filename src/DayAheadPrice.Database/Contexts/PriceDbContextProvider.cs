@@ -3,9 +3,9 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using RepositoryPrototype.Interfaces;
-using RepositoryPrototype.Options;
-using RepositoryPrototype.Providers;
+using Faemiyah.Repository.Interfaces;
+using Faemiyah.Repository.Options;
+using Faemiyah.Repository.Providers;
 
 namespace DayAheadPrice.Database.Contexts;
 

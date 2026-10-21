@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.EntityFrameworkCore;
-using RepositoryPrototype.Entities;
+using Faemiyah.Repository.Entities;
 
 namespace DayAheadPrice.Database.Entities;
 
