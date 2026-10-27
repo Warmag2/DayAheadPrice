@@ -1,5 +1,6 @@
 @using DayAheadPrice.Components.Elements
 @using DayAheadPrice.Entities
+@using DayAheadPrice.Enums
 @using DayAheadPrice.Extensions
 @using DayAheadPrice.Logic
 @using static DayAheadPrice.Logic.GridScaleSelector
@@ -219,9 +220,15 @@
 
             // Reset the headers to the first visible bar so a view change immediately shows where we are, instead of
             // whatever bar happened to be hovered before.
-            var first = _adjustedPrices.First();
-            _priceString = $"{first.Value.ToString("0.00")}c/kWh";
-            _timeString = DateTimeExtensions.DescribeSpan(first.Key, _view.Resolution.AddTo(first.Key));
+            // Exception is made for live view, which should show current time and price
+            var isLive = state.ZoomIndex == ZoomLevels.FinestIndex && state.AnchorLocal == null;
+            var displayPrice = isLive ? _adjustedPrices.SingleOrDefault(p => p.Key == DateTime.Now.Floor(CalendarUnit.Quarter)) : _adjustedPrices.First();
+            // Theoretically we can get a default value, so guard for that
+            if (displayPrice.Key != default)
+            {
+                _priceString = $"{displayPrice.Value.ToString("0.00")}c/kWh";
+                _timeString = DateTimeExtensions.DescribeSpan(displayPrice.Key, _view.Resolution.AddTo(displayPrice.Key));
+            }
         }
         else
         {
