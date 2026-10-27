@@ -1,10 +1,16 @@
 ﻿<Project>
+
+  <PropertyGroup Label="Product metadata">
+    <Authors>Warma</Authors>
+    <Company>Faemiyah</Company>
+    <Product>DayAheadPrice</Product>
+    <Copyright>Faemiyah 2025-2026</Copyright>
+    <RepositoryUrl>https://github.com/Warmag2/DayAheadPrice</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/Warmag2/DayAheadPrice</PackageProjectUrl>
+  </PropertyGroup>
+
   <ItemGroup>
-    <PackageReference
-      Include="SonarAnalyzer.CSharp"
-      Version="10.35.0.4138"
-      PrivateAssets="all"
-      Condition="$(MSBuildProjectExtension) == '.csproj'"
-    />
+    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.35.0.4138" PrivateAssets="all" />
   </ItemGroup>
+
 </Project>

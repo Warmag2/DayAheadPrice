@@ -4,14 +4,17 @@ using DayAheadPrice.Database.Contexts;
 using DayAheadPrice.Logic;
 using DayAheadPrice.Options;
 using DayAheadPrice.Repositories;
+using Faemiyah.Common.Hosting;
+using Faemiyah.Common.Hosting.Logging;
+using Faemiyah.Repository.Interfaces;
+using Faemiyah.Repository.Options;
+using Faemiyah.Repository.Providers;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using RepositoryPrototype.Interfaces;
-using RepositoryPrototype.Options;
-using RepositoryPrototype.Providers;
+using Microsoft.Extensions.Logging;
 
 namespace DayAheadPrice;
 
@@ -28,6 +31,10 @@ internal static class Program
     {
         var builder = WebApplication.CreateBuilder(args);
 
+        // Faemiyah logging and JSON serializer defaults from the shared libraries.
+        builder.Logging.AddFaemiyahLogging();
+        builder.Services.ConfigureJsonSerializerOptions();
+
         // Add services to the container.
         builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 
@@ -37,7 +44,7 @@ internal static class Program
         builder.Services.Configure<PersistenceOptions>(builder.Configuration.GetSection("PersistenceOptions"));
         builder.Services.Configure<SqlOptions>(builder.Configuration.GetSection("SqlOptions"));
 
-        // Price persistence (RepositoryPrototype-based PostgreSQL storage).
+        // Price persistence (Faemiyah.Repository-based PostgreSQL storage).
         builder.Services.AddSingleton<IConnectionStringAccessor, PgSqlConnectionStringAccessor>();
         builder.Services.AddSingleton<IDatabaseContextProvider<PriceDbContext>, PriceDbContextProvider>();
         builder.Services.AddSingleton<PricePointRepository>();
