@@ -123,6 +123,66 @@ internal class PriceSeriesService
     }
 
     /// <summary>
+    /// Summarise the most recent fully-available day: its lowest, highest and time-weighted average price.
+    /// </summary>
+    /// <remarks>
+    /// Fetches and persists newer data first, exactly as a live page render would, so an access that is the first
+    /// of the day still returns the freshly published prices. The "last available day" is the local calendar day the
+    /// latest stored slot falls in, which after publication (around 13:00 local) is tomorrow. Prices are raw (before
+    /// margin and VAT), matching the stored data and the rendered bars.
+    /// </remarks>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The summary, or <b>null</b> when nothing is stored for the domain.</returns>
+    public async Task<PriceDaySummary?> GetLatestDaySummaryAsync(CancellationToken cancellationToken = default)
+    {
+        var domain = _endpointOptions.Domain;
+
+        // Pull and persist newer data when the stored window no longer reaches far enough ahead, just as the live view does.
+        await _container.EnsureFreshAsync(cancellationToken);
+
+        var bounds = await _repository.GetBoundsAsync(domain, cancellationToken);
+
+        if (bounds == null)
+        {
+            return null;
+        }
+
+        // The latest stored slot ends (exclusive) at this local instant, so the last covered day is the day its final tick falls in.
+        var lastDay = DateOnly.FromDateTime(bounds.Value.MaxUtc.ToLocalTime().AddTicks(-1));
+        var dayStartLocal = lastDay.ToDateTime(TimeOnly.MinValue);
+        var dayEndLocal = dayStartLocal.AddDays(1);
+
+        var slots = await _repository.GetRangeAsync(
+            domain,
+            dayStartLocal.ToUniversalTime(),
+            dayEndLocal.ToUniversalTime(),
+            cancellationToken);
+
+        var intervals = slots
+            .Where(s => s.DateBegin.HasValue && s.DateEnd.HasValue)
+            .Select(s => (Start: s.DateBegin!.Value.ToLocalTime(), End: s.DateEnd!.Value.ToLocalTime(), s.Price))
+            .OrderBy(i => i.Start)
+            .ToList();
+
+        var (average, totalTicks) = ComputeBar(intervals, dayStartLocal, dayEndLocal);
+
+        if (totalTicks <= 0)
+        {
+            return null;
+        }
+
+        var currency = slots.Select(s => s.Currency).FirstOrDefault() ?? "EUR";
+
+        return new PriceDaySummary(
+            domain,
+            lastDay,
+            currency,
+            intervals.Min(i => i.Price),
+            intervals.Max(i => i.Price),
+            Math.Round(average, 4));
+    }
+
+    /// <summary>
     /// Render the live (current) window, serving from the in-memory snapshot while it is fresh and otherwise
     /// reloading it once from the database.
     /// </summary>

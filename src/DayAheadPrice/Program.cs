@@ -1,4 +1,5 @@
 using System.IO;
+using System.Threading;
 using DayAheadPrice.Components;
 using DayAheadPrice.Database.Contexts;
 using DayAheadPrice.Logic;
@@ -11,6 +12,7 @@ using Faemiyah.Repository.Options;
 using Faemiyah.Repository.Providers;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -72,6 +74,15 @@ internal static class Program
         app.UseAntiforgery();
 
         app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
+
+        // Free, anonymous JSON summary of the latest available day's prices (min/max/time-weighted average). Fetches
+        // newer data on access when stored prices are stale, exactly as the live page does.
+        app.MapGet("/prices/summary", async (PriceSeriesService priceSeriesService, CancellationToken cancellationToken) =>
+        {
+            var summary = await priceSeriesService.GetLatestDaySummaryAsync(cancellationToken);
+
+            return summary is null ? Results.NotFound() : Results.Ok(summary);
+        });
 
         app.Run();
     }
