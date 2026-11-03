@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -216,12 +217,16 @@ internal class PriceSeriesService
         var margin = _pricingOptions.Margin;
         var vat = _pricingOptions.Vat;
 
+        // The slot carrying the day's highest price; ties resolve to the earliest, since intervals are ordered by start.
+        var peak = intervals.MaxBy(i => i.Price);
+
         return new PriceDaySummary(
             domain,
             day,
             currency,
             intervals.Min(i => i.Price).ApplyMarginAndVat(margin, vat),
-            intervals.Max(i => i.Price).ApplyMarginAndVat(margin, vat),
+            peak.Price.ApplyMarginAndVat(margin, vat),
+            TimeOnly.FromDateTime(peak.Start).ToString("HH\\:mm", CultureInfo.InvariantCulture),
             Math.Round(average.ApplyMarginAndVat(margin, vat), 4),
             margin,
             vat);

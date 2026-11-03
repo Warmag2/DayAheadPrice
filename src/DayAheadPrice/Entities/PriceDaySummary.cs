@@ -15,6 +15,7 @@ namespace DayAheadPrice.Entities;
 /// <param name="Currency">The ISO currency the prices are expressed in.</param>
 /// <param name="Min">The lowest slot price of the day, including margin and VAT.</param>
 /// <param name="Max">The highest slot price of the day, including margin and VAT.</param>
+/// <param name="MaxTime">The local time of day (<c>HH:mm</c>) at which the highest price occurs.</param>
 /// <param name="Average">The time-weighted average price across the day, including margin and VAT.</param>
 /// <param name="Margin">The margin (c/kWh) added to every price.</param>
 /// <param name="Vat">The VAT fraction applied to every price.</param>
@@ -24,6 +25,7 @@ internal sealed record PriceDaySummary(
     string Currency,
     decimal Min,
     decimal Max,
+    string MaxTime,
     decimal Average,
     decimal Margin,
     decimal Vat);
