@@ -24,6 +24,7 @@ internal class PriceSeriesService
     private readonly PriceContainer _container;
     private readonly LivePriceState _liveState;
     private readonly EndpointOptions _endpointOptions;
+    private readonly PricingOptions _pricingOptions;
 
     // Raw (pre-margin/VAT) time-weighted averages for fully-covered, wholly-past bars, keyed by domain + resolution
     // + local bar start. Such periods are immutable, so re-reads of coarse windows avoid rescanning thousands of raw
@@ -37,16 +38,19 @@ internal class PriceSeriesService
     /// <param name="container">The price container, used to backfill missing history from the API.</param>
     /// <param name="liveState">The shared live-view cache and freshness authority.</param>
     /// <param name="endpointOptions">The endpoint options, supplying the domain to read.</param>
+    /// <param name="pricingOptions">The pricing options, supplying the default margin and VAT.</param>
     public PriceSeriesService(
         PricePointRepository repository,
         PriceContainer container,
         LivePriceState liveState,
-        IOptions<EndpointOptions> endpointOptions)
+        IOptions<EndpointOptions> endpointOptions,
+        IOptions<PricingOptions> pricingOptions)
     {
         _repository = repository;
         _container = container;
         _liveState = liveState;
         _endpointOptions = endpointOptions.Value;
+        _pricingOptions = pricingOptions.Value;
     }
 
     /// <summary>
@@ -173,13 +177,18 @@ internal class PriceSeriesService
 
         var currency = slots.Select(s => s.Currency).FirstOrDefault() ?? "EUR";
 
+        var margin = _pricingOptions.Margin;
+        var vat = _pricingOptions.Vat;
+
         return new PriceDaySummary(
             domain,
             lastDay,
             currency,
-            intervals.Min(i => i.Price),
-            intervals.Max(i => i.Price),
-            Math.Round(average, 4));
+            intervals.Min(i => i.Price).ApplyMarginAndVat(margin, vat),
+            intervals.Max(i => i.Price).ApplyMarginAndVat(margin, vat),
+            Math.Round(average.ApplyMarginAndVat(margin, vat), 4),
+            margin,
+            vat);
     }
 
     /// <summary>

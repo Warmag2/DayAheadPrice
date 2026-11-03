@@ -207,7 +207,7 @@
 
         foreach (var (time, price) in _view.Bars)
         {
-            _adjustedPrices.Add(time, price * (1m + Vat) + Margin);
+            _adjustedPrices.Add(time, price.ApplyMarginAndVat(Margin, Vat));
         }
 
         if (_adjustedPrices.Count > 0)

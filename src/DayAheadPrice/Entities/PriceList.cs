@@ -36,7 +36,7 @@ internal class PriceList
         {
             if (price.Key >= minDate && price.Key <= maxDate)
             {
-                adjustedPrices.Add(price.Key, price.Value * (1m + vat) + margin);
+                adjustedPrices.Add(price.Key, price.Value.ApplyMarginAndVat(margin, vat));
             }
         }
 
