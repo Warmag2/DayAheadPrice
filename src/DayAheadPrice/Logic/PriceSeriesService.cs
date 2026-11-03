@@ -20,6 +20,10 @@ internal class PriceSeriesService
 {
     private const int LiveHoursBefore = 12;
 
+    // The least data a local day must hold to be summarised, so a thin sliver left by the caller's timezone differing
+    // from the market's (e.g. one hour spilling past local midnight) is skipped in favour of the real last day.
+    private const int MinimumDaySummaryCoverageHours = 12;
+
     private readonly PricePointRepository _repository;
     private readonly PriceContainer _container;
     private readonly LivePriceState _liveState;
@@ -127,16 +131,17 @@ internal class PriceSeriesService
     }
 
     /// <summary>
-    /// Summarise the most recent fully-available day: its lowest, highest and time-weighted average price.
+    /// Summarise the most recent sufficiently-covered day: its lowest, highest and time-weighted average price.
     /// </summary>
     /// <remarks>
-    /// Fetches and persists newer data first, exactly as a live page render would, so an access that is the first
-    /// of the day still returns the freshly published prices. The "last available day" is the local calendar day the
-    /// latest stored slot falls in, which after publication (around 13:00 local) is tomorrow. Prices are raw (before
-    /// margin and VAT), matching the stored data and the rendered bars.
+    /// Fetches and persists newer data first, exactly as a live page render would, so an access that is the first of
+    /// the day still returns the freshly published prices. Prices come from ENTSO-e aligned to the market's day, but
+    /// the app works in server-local time; when the two timezones differ, the newest local day holds only a thin
+    /// sliver of data (an hour or two spilling past local midnight). To avoid reporting such a sliver, the newest
+    /// local day holding at least <see cref="MinimumDaySummaryCoverageHours"/> hours of data is summarised instead.
     /// </remarks>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The summary, or <b>null</b> when nothing is stored for the domain.</returns>
+    /// <returns>The summary, or <b>null</b> when no day has enough stored data.</returns>
     public async Task<PriceDaySummary?> GetLatestDaySummaryAsync(CancellationToken cancellationToken = default)
     {
         var domain = _endpointOptions.Domain;
@@ -151,9 +156,39 @@ internal class PriceSeriesService
             return null;
         }
 
-        // The latest stored slot ends (exclusive) at this local instant, so the last covered day is the day its final tick falls in.
-        var lastDay = DateOnly.FromDateTime(bounds.Value.MaxUtc.ToLocalTime().AddTicks(-1));
-        var dayStartLocal = lastDay.ToDateTime(TimeOnly.MinValue);
+        var earliestDay = DateOnly.FromDateTime(bounds.Value.MinUtc.ToLocalTime());
+
+        // The latest stored slot ends (exclusive) at this local instant, so its final tick is the newest covered day.
+        var candidate = DateOnly.FromDateTime(bounds.Value.MaxUtc.ToLocalTime().AddTicks(-1));
+
+        // Walk back from the newest day to the newest one with enough coverage, skipping a short sliver left by the
+        // caller's timezone differing from the market's.
+        while (candidate >= earliestDay)
+        {
+            var summary = await TryBuildDaySummaryAsync(domain, candidate, cancellationToken);
+
+            if (summary != null)
+            {
+                return summary;
+            }
+
+            candidate = candidate.AddDays(-1);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Build a one-day summary for a specific local day, or <b>null</b> when that day holds fewer than
+    /// <see cref="MinimumDaySummaryCoverageHours"/> hours of data.
+    /// </summary>
+    /// <param name="domain">The price domain.</param>
+    /// <param name="day">The local calendar day to summarise.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The summary, or <b>null</b> when the day lacks enough data.</returns>
+    private async Task<PriceDaySummary?> TryBuildDaySummaryAsync(string domain, DateOnly day, CancellationToken cancellationToken)
+    {
+        var dayStartLocal = day.ToDateTime(TimeOnly.MinValue);
         var dayEndLocal = dayStartLocal.AddDays(1);
 
         var slots = await _repository.GetRangeAsync(
@@ -170,7 +205,8 @@ internal class PriceSeriesService
 
         var (average, totalTicks) = ComputeBar(intervals, dayStartLocal, dayEndLocal);
 
-        if (totalTicks <= 0)
+        // Require enough of the day to be covered so a thin timezone-induced sliver is not reported as "the last day".
+        if (totalTicks < TimeSpan.FromHours(MinimumDaySummaryCoverageHours).Ticks)
         {
             return null;
         }
@@ -182,7 +218,7 @@ internal class PriceSeriesService
 
         return new PriceDaySummary(
             domain,
-            lastDay,
+            day,
             currency,
             intervals.Min(i => i.Price).ApplyMarginAndVat(margin, vat),
             intervals.Max(i => i.Price).ApplyMarginAndVat(margin, vat),
