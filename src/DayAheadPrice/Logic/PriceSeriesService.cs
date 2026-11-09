@@ -21,6 +21,10 @@ internal class PriceSeriesService
 {
     private const int LiveHoursBefore = 12;
 
+    private const decimal AlertAverageThreshold = 10m;
+    private const decimal AlertHourThreshold = 20m;
+    private const decimal AlertMaxThreshold = 30m;
+
     // The least data a local day must hold to be summarised, so a thin sliver left by the caller's timezone differing
     // from the market's (e.g. one hour spilling past local midnight) is skipped in favour of the real last day.
     private const int MinimumDaySummaryCoverageHours = 12;
@@ -220,6 +224,31 @@ internal class PriceSeriesService
         // The slot carrying the day's highest price; ties resolve to the earliest, since intervals are ordered by start.
         var peak = intervals.MaxBy(i => i.Price);
 
+        var alerts = new List<string>();
+
+        // Calculate any alertworthy conditions for the day, from the most important to least important
+        if (average > AlertAverageThreshold)
+        {
+            alerts.Add("High average price.");
+        }
+
+        // The hour with the highest time-weighted average; ties resolve to the earliest hour.
+        var peakHour = Enumerable.Range(0, (int)(dayEndLocal - dayStartLocal).TotalHours)
+            .Select(h => dayStartLocal.AddHours(h))
+            .Select(start => (Start: start, Bar: ComputeBar(intervals, start, start.AddHours(1))))
+            .Where(h => h.Bar.TotalTicks > 0)
+            .MaxBy(h => h.Bar.Value);
+
+        if (peakHour.Bar.Value > AlertHourThreshold)
+        {
+            alerts.Add($"High average price during hour {peakHour.Start.ToString("HH\\:mm", CultureInfo.InvariantCulture)}.");
+        }
+
+        if(peak.Price > AlertMaxThreshold)
+        {
+            alerts.Add("High peak price.");
+        }
+
         return new PriceDaySummary(
             domain,
             day,
@@ -229,7 +258,8 @@ internal class PriceSeriesService
             TimeOnly.FromDateTime(peak.Start).ToString("HH\\:mm", CultureInfo.InvariantCulture),
             Math.Round(average.ApplyMarginAndVat(margin, vat), 4),
             margin,
-            vat);
+            vat,
+            alerts);
     }
 
     /// <summary>

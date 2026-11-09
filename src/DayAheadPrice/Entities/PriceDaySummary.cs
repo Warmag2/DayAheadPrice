@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace DayAheadPrice.Entities;
 
@@ -19,6 +20,7 @@ namespace DayAheadPrice.Entities;
 /// <param name="Average">The time-weighted average price across the day, including margin and VAT.</param>
 /// <param name="Margin">The margin (c/kWh) added to every price.</param>
 /// <param name="Vat">The VAT fraction applied to every price.</param>
+/// <param name="Alerts">The alerts for the day, if any.</param>
 internal sealed record PriceDaySummary(
     string Domain,
     DateOnly Date,
@@ -28,4 +30,5 @@ internal sealed record PriceDaySummary(
     string MaxTime,
     decimal Average,
     decimal Margin,
-    decimal Vat);
+    decimal Vat,
+    IReadOnlyCollection<string> Alerts);
