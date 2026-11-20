@@ -9,6 +9,11 @@
     <link rel="stylesheet" href="./dayaheadprice.css" />
     <link rel="stylesheet" href="./DayAheadPrice.styles.css" />
     <link rel="icon" type="image/png" href="favicon.png" />
+    <meta property="og:site_name" content="DayAheadPrice" />
+    <meta property="og:title" content="DayAheadPrice" />
+    <meta property="og:description" content="Day-ahead electricity spot prices from ENTSO-E." />
+    <meta property="og:image" content="@OgImageUrl" />
+    <meta property="og:type" content="website" />
     <HeadOutlet />
 </head>
 
@@ -19,3 +24,12 @@
 </body>
 
 </html>
+
+@code {
+    [CascadingParameter]
+    private Microsoft.AspNetCore.Http.HttpContext HttpContext { get; set; } = default!;
+
+    // Open Graph requires an absolute URL; derived from the request so it follows whatever host the app is served on.
+    private string OgImageUrl =>
+        $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host}{HttpContext.Request.PathBase}/logo_dayaheadprice.png";
+}
