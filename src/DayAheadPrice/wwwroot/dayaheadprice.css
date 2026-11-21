@@ -1,6 +1,23 @@
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
 html, body {
     height: 100%;
     font-family: monospace;
+}
+
+/* Explicit font-size also avoids the browser's smaller default size for generic monospace. */
+body {
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.text-danger {
+    color: #dc3545;
 }
 
 .blazor-error-boundary {
@@ -338,6 +355,10 @@ div.explorercontrols {
     gap: 3px;
     padding: 0.3em;
     align-content: center;
+}
+
+button {
+    margin: 0;
 }
 
 button.explorerbutton {
