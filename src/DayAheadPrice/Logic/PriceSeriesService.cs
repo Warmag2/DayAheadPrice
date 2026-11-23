@@ -224,10 +224,14 @@ internal class PriceSeriesService
         // The slot carrying the day's highest price; ties resolve to the earliest, since intervals are ordered by start.
         var peak = intervals.MaxBy(i => i.Price);
 
+        // Alert thresholds are in final consumer prices, so compare against values with margin and VAT applied.
+        var finalAverage = average.ApplyMarginAndVat(margin, vat);
+        var finalPeak = peak.Price.ApplyMarginAndVat(margin, vat);
+
         var alerts = new List<string>();
 
         // Calculate any alertworthy conditions for the day, from the most important to least important
-        if (average > AlertAverageThreshold)
+        if (finalAverage > AlertAverageThreshold)
         {
             alerts.Add("High average price.");
         }
@@ -239,12 +243,12 @@ internal class PriceSeriesService
             .Where(h => h.Bar.TotalTicks > 0)
             .MaxBy(h => h.Bar.Value);
 
-        if (peakHour.Bar.Value > AlertHourThreshold)
+        if (peakHour.Bar.Value.ApplyMarginAndVat(margin, vat) > AlertHourThreshold)
         {
             alerts.Add($"High average price during hour {peakHour.Start.ToString("HH\\:mm", CultureInfo.InvariantCulture)}.");
         }
 
-        if(peak.Price > AlertMaxThreshold)
+        if (finalPeak > AlertMaxThreshold)
         {
             alerts.Add("High peak price.");
         }
@@ -253,10 +257,10 @@ internal class PriceSeriesService
             domain,
             day,
             currency,
-            intervals.Min(i => i.Price).ApplyMarginAndVat(margin, vat),
-            peak.Price.ApplyMarginAndVat(margin, vat),
+            Math.Round(intervals.Min(i => i.Price).ApplyMarginAndVat(margin, vat), 2, MidpointRounding.AwayFromZero),
+            Math.Round(finalPeak, 2, MidpointRounding.AwayFromZero),
             TimeOnly.FromDateTime(peak.Start).ToString("HH\\:mm", CultureInfo.InvariantCulture),
-            Math.Round(average.ApplyMarginAndVat(margin, vat), 4),
+            Math.Round(finalAverage, 2, MidpointRounding.AwayFromZero),
             margin,
             vat,
             alerts);

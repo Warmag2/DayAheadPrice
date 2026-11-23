@@ -7,7 +7,7 @@ namespace DayAheadPrice.Entities;
 /// A compact summary of one day's electricity prices, returned by the public summary endpoint.
 /// </summary>
 /// <remarks>
-/// Prices are c/kWh and already include the configured default <see cref="Margin"/> and <see cref="Vat"/>, applied
+/// Prices are c/kWh rounded to two decimals and already include the configured default <see cref="Margin"/> and <see cref="Vat"/>, applied
 /// the same way the UI applies them (<c>raw * (1 + Vat) + Margin</c>). <see cref="Average"/> is time-weighted across
 /// the day's slots.
 /// </remarks>
