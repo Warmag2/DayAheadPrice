@@ -6,6 +6,7 @@ WORKDIR /app
 
 FROM faemiyahsdk:latest AS build
 WORKDIR /build
+COPY ["Directory.Build.props", ".editorconfig", "./"]
 COPY ["src/", "src/"]
 WORKDIR "/build/src/DayAheadPrice"
 RUN dotnet publish "DayAheadPrice.csproj" -c Release -o /app/publish
