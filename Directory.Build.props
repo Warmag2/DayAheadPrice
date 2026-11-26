@@ -1,4 +1,15 @@
-﻿<Project>
+<Project>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <AssemblyName>Faemiyah.$(MSBuildProjectName)</AssemblyName>
+    <RootNamespace>Faemiyah.$(MSBuildProjectName)</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
 
   <PropertyGroup Label="Product metadata">
     <Authors>Warma</Authors>
@@ -10,7 +21,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.35.0.4138" PrivateAssets="all" />
+    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.37.0.15768" PrivateAssets="all" />
   </ItemGroup>
 
 </Project>

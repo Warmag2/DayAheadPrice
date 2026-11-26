@@ -7,7 +7,7 @@ using Faemiyah.Repository.Interfaces;
 using Faemiyah.Repository.Options;
 using Faemiyah.Repository.Providers;
 
-namespace DayAheadPrice.Database.Contexts;
+namespace Faemiyah.DayAheadPrice.Database.Contexts;
 
 /// <summary>
 /// Provides <see cref="PriceDbContext"/> instances, creating and migrating the database on first use.

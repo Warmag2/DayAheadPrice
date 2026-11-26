@@ -1,65 +1,14 @@
-@using DayAheadPrice.Components.Elements
-@using DayAheadPrice.Entities
-@using DayAheadPrice.Enums
-@using DayAheadPrice.Extensions
-@using DayAheadPrice.Logic
-@using DayAheadPrice.Options
+@using Faemiyah.DayAheadPrice.Options
 @using Microsoft.Extensions.Options
-@using static DayAheadPrice.Logic.GridScaleSelector
-@inject PriceContainer _priceContainer
 @inject IOptions<PricingOptions> _pricingOptions
-@inject IOptions<PersistenceOptions> _persistenceOptions
 @page "/"
-@rendermode InteractiveServer
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 
 <PageTitle>Day-ahead electricity prices (Finland)</PageTitle>
 
-@if (_persistenceOptions.Value.Enabled)
-{
-    @* Price history is stored: the interactive explorer owns the page and drives its zoom/pan
-       position through the "z" and "a" query parameters supplied to this route. *@
-    <PriceExplorer Zoom="Zoom" Anchor="Anchor" Theme="@ResolvedTheme" Margin="ResolvedMargin" Vat="ResolvedVat" />
-}
-else
-{
-<div class="fullwidth page" data-theme="@ResolvedTheme">
-    <div id="TimeHeader" class="pageheader">
-        @_timeString
-    </div>
-
-    <div id="PriceHeader" class="pageheader">
-        @_priceString
-    </div>
-
-    @if (_priceList?.GetPrices(ResolvedMargin, ResolvedVat) is { Count: > 0 } prices)
-    {
-        @* The fetch failed but the cached prices still cover future time, so show them with a warning. *@
-        @if (_fetchStatus != PriceFetchStatus.Success)
-        {
-            <p class="fetchwarning">
-                @GetStatusMessage() Showing the most recently fetched prices.
-            </p>
-        }
-
-        var maxPrice = prices.Max(p => p.Value);
-        var minPrice = prices.Min(p => p.Value);
-        minPrice = Math.Min(minPrice, 0.0m);
-        var gridScale = GetGridScale((int)Math.Ceiling(maxPrice), (int)Math.Floor(minPrice));
-        var ceilPrice = (int)Math.Ceiling(maxPrice / gridScale) * gridScale;
-        var floorPrice = (int)Math.Floor(minPrice / gridScale) * gridScale;
-
-        <div class="fullwidth pagecontent">
-            <Histogram Max=@ceilPrice Min=@floorPrice Prices=@prices />
-        </div>
-    }
-    else
-    {
-        <p>
-            @GetStatusMessage()
-        </p>
-    }
-</div>
-}
+@* The interactive explorer owns the page and drives its zoom/pan position through the "z" and "a" query
+   parameters supplied to this route. *@
+<PriceExplorer Zoom="Zoom" Anchor="Anchor" Theme="@ResolvedTheme" Margin="ResolvedMargin" Vat="ResolvedVat" />
 
 @code {
     [SupplyParameterFromQuery(Name = "z")]
@@ -77,59 +26,9 @@ else
     [SupplyParameterFromQuery(Name = "vat")]
     public decimal? Vat { get; set; }
 
-    private string ResolvedTheme => Theme is "light" or "dark" ? Theme : "dark";
-    private decimal ResolvedMargin => Margin ?? _pricingOptions.Value.Margin;
-    private decimal ResolvedVat => Vat ?? _pricingOptions.Value.Vat;
+    private string ResolvedTheme => Components.Theme.Resolve(Theme);
 
-    private PriceList? _priceList;
-    private PriceFetchStatus _fetchStatus = PriceFetchStatus.Success;
-
-    private string _timeString = string.Empty;
-    private string _priceString = string.Empty;
-
-    private string GetStatusMessage()
-    {
-        return _fetchStatus switch
-        {
-            PriceFetchStatus.ApiUnavailable => "The ENTSO-E price service is currently unavailable.",
-            PriceFetchStatus.ApiNotFound => "The price service address returned \"not found\". API address is likely wrong.",
-            PriceFetchStatus.Unreachable => "The price service could not be reached. Check the network connection.",
-            PriceFetchStatus.NoDataForPeriod => "The price service returned no prices for this period. Check price area configuration.",
-            PriceFetchStatus.InvalidResponse => "The price service returned data in an unexpected format. Check data formatting.",
-            PriceFetchStatus.UnknownError => "Prices could not be loaded because of an unexpected error.",
-            _ => "No data to display."
-        };
-    }
-
-    private void SetPriceString(decimal input)
-    {
-        _priceString = $"{input.ToString("0.00")}c/kWh";
-    }
-
-    private void SetTimeString(DateTime input)
-    {
-        _timeString = $"{input.Month.ToString("00")}-{input.Day.ToString("00")} \u23F2 {input.Hour.ToString("00")}:{input.Minute.ToString("00")} \u2014 {(input.Hour).ToString("00")}:{(input.Minute + 14).ToString("00")}";
-    }
-
-    protected override async Task OnInitializedAsync()
-    {
-        if (_persistenceOptions.Value.Enabled)
-        {
-            // The interactive explorer is rendered instead; nothing to prepare here.
-            return;
-        }
-
-        var fetchResult = await _priceContainer.GetPriceListAsync();
-
-        _priceList = fetchResult.Prices;
-        _fetchStatus = fetchResult.Status;
-
-        if (_priceList != null)
-        {
-            var prices = _priceList.GetPrices(ResolvedMargin, ResolvedVat);
-            var printValue = prices?.TryGetValue(DateTime.Now.Floor(CalendarUnit.Quarter), out var value) == true ? value : 0m;
-            SetPriceString(printValue);
-            SetTimeString(DateTime.Now.Floor(CalendarUnit.Quarter));
-        }
-    }
+    // Out-of-range values (for example a negative VAT, which would zero every price) fall back to the defaults.
+    private decimal ResolvedMargin => Margin is { } margin && PricingOptions.IsValidMargin(margin) ? margin : _pricingOptions.Value.Margin;
+    private decimal ResolvedVat => Vat is { } vat && PricingOptions.IsValidVat(vat) ? vat : _pricingOptions.Value.Vat;
 }

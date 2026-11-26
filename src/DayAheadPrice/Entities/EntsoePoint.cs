@@ -1,12 +1,10 @@
-﻿using System;
-using System.Xml.Serialization;
+﻿using System.Xml.Serialization;
 
-namespace DayAheadPrice.Entities;
+namespace Faemiyah.DayAheadPrice.Entities;
 
 /// <summary>
 /// ENTSO-e data point entity.
 /// </summary>
-[Serializable]
 public class EntsoePoint
 {
     /// <summary>
@@ -16,8 +14,8 @@ public class EntsoePoint
     public int Position { get; set; }
 
     /// <summary>
-    /// Price at this position index.
+    /// Price at this position index, in EUR/MWh.
     /// </summary>
     [XmlElement(ElementName = "price.amount")]
-    public string Price { get; set; } = string.Empty;
+    public decimal Price { get; set; }
 }

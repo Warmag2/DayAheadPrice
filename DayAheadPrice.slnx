@@ -1,4 +1,10 @@
 <Solution>
-  <Project Path="src/DayAheadPrice.Database/DayAheadPrice.Database.csproj" />
-  <Project Path="src/DayAheadPrice/DayAheadPrice.csproj" />
+  <Folder Name="/src/">
+    <Project Path="src/DayAheadPrice.Database/DayAheadPrice.Database.csproj" />
+    <Project Path="src/DayAheadPrice/DayAheadPrice.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DayAheadPrice.IntegrationTests/DayAheadPrice.IntegrationTests.csproj" />
+    <Project Path="tests/DayAheadPrice.UnitTests/DayAheadPrice.UnitTests.csproj" />
+  </Folder>
 </Solution>

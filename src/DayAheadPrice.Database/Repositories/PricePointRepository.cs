@@ -3,19 +3,19 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using DayAheadPrice.Database.Contexts;
-using DayAheadPrice.Database.Entities;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
+using Faemiyah.DayAheadPrice.Database.Contexts;
+using Faemiyah.DayAheadPrice.Database.Entities;
 using Faemiyah.Repository.Interfaces;
 using Faemiyah.Repository.Repositories;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
-namespace DayAheadPrice.Database.Repositories;
+namespace Faemiyah.DayAheadPrice.Database.Repositories;
 
 /// <summary>
 /// Repository for stored electricity price slots.
 /// </summary>
-internal class PricePointRepository : TemporalRepositoryBase<PriceDbContext, long, PricePoint>
+public class PricePointRepository : TemporalRepositoryBase<PriceDbContext, long, PricePoint>
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="PricePointRepository"/> class.
@@ -54,7 +54,7 @@ internal class PricePointRepository : TemporalRepositoryBase<PriceDbContext, lon
     /// Get the earliest slot start and latest slot end stored for a domain.
     /// </summary>
     /// <remarks>
-    /// Uses a direct aggregate query rather than materialising the domain, since the history can grow large and
+    /// Uses a single aggregate query rather than materialising the domain, since the history can grow large and
     /// this is asked on every page render to bound navigation.
     /// </remarks>
     /// <param name="domain">The bidding zone / domain.</param>
@@ -66,42 +66,18 @@ internal class PricePointRepository : TemporalRepositoryBase<PriceDbContext, lon
     {
         await using var dbContext = await DatabaseContextProvider.GetDbContextAsync(cancellationToken: cancellationToken);
 
-        var query = dbContext.Set<PricePoint>().AsNoTracking().Where(p => p.Domain == domain);
+        var bounds = await dbContext.Set<PricePoint>()
+            .AsNoTracking()
+            .Where(p => p.Domain == domain)
+            .GroupBy(p => p.Domain)
+            .Select(g => new { MinUtc = g.Min(p => p.DateBegin), MaxUtc = g.Max(p => p.DateEnd) })
+            .FirstOrDefaultAsync(cancellationToken);
 
-        if (!await query.AnyAsync(cancellationToken))
+        if (bounds is not { MinUtc: { } minUtc, MaxUtc: { } maxUtc })
         {
             return null;
         }
 
-        var min = await query.MinAsync(p => p.DateBegin, cancellationToken);
-        var max = await query.MaxAsync(p => p.DateEnd, cancellationToken);
-
-        if (min == null || max == null)
-        {
-            return null;
-        }
-
-        return (min.Value, max.Value);
-    }
-
-    /// <summary>
-    /// Insert the given slots, updating any that already exist for the same domain and start time.
-    /// </summary>
-    /// <remarks>
-    /// Prices are written at most once per publication, so this simply adds or updates each slot in turn rather
-    /// than batching. Slots are matched on (<see cref="PricePoint.Domain"/>,
-    /// <see cref="PricePoint.DateBegin"/>), the unique index, so re-fetching a window overwrites rather
-    /// than duplicates.
-    /// </remarks>
-    /// <param name="points">The slots to store. All must carry a <see cref="PricePoint.DateBegin"/>.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    public async Task UpsertManyAsync(
-        IReadOnlyCollection<PricePoint> points,
-        CancellationToken cancellationToken = default)
-    {
-        foreach (var incoming in points)
-        {
-            await AddOrUpdateAsync(incoming, e => e.DateBegin == incoming.DateBegin && e.Domain == incoming.Domain, cancellationToken);
-        }
+        return (minUtc, maxUtc);
     }
 }

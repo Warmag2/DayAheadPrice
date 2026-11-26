@@ -8,12 +8,14 @@ html, body {
 }
 
 /* Explicit font-size also avoids the browser's smaller default size for generic monospace. */
+/* Paint the theme background before the (non-prerendered) interactive page connects, avoiding a flash. */
 body {
     margin: 0;
     font-size: 1rem;
     line-height: 1.5;
     -webkit-text-size-adjust: 100%;
     -webkit-tap-highlight-color: transparent;
+    background-color: var(--color-background);
 }
 
 .text-danger {
@@ -53,23 +55,27 @@ body {
     Own additions
 **********************************************************************/
 
-div.page[data-theme="dark"] {
+[data-theme="dark"] {
     --color-background: #111827;
     --color-text: #FFB300;
     --color-grid: #B87800;
     --color-price: rgba(34, 211, 238, 0.45);
     --color-price-border: #67C8E8;
+    --color-unavailable: rgba(239, 68, 68, 0.35);
+    --color-unavailable-border: #F87171;
     --color-hover: #C47319;
     --color-currenthour: #92400E;
     --color-currentday: #1F2937;
 }
 
-div.page[data-theme="light"] {
+[data-theme="light"] {
     --color-background: white;
     --color-text: black;
     --color-grid: darkslategray;
     --color-price: rgba(0, 152, 0, 0.6);
     --color-price-border: darkslategray;
+    --color-unavailable: rgba(200, 0, 0, 0.35);
+    --color-unavailable-border: darkred;
     --color-hover: #6787B7;
     --color-currenthour: #A797E7;
     --color-currentday: #D8D8D8;
@@ -162,7 +168,7 @@ div.histogrambar:active {
     background-color: var(--color-hover);
 }
 
-div.price, div.noprice {
+div.price, div.noprice, div.unavailable {
     pointer-events: none;
     touch-action: none;
 }
@@ -170,6 +176,12 @@ div.price, div.noprice {
 div.price {
     background: var(--color-price);
     border: 1px solid var(--color-price-border);
+    min-height: 0;
+}
+
+div.unavailable {
+    background: var(--color-unavailable);
+    border: 1px solid var(--color-unavailable-border);
     min-height: 0;
 }
 

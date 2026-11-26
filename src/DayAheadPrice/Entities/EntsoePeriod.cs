@@ -1,13 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Xml.Serialization;
 
-namespace DayAheadPrice.Entities;
+namespace Faemiyah.DayAheadPrice.Entities;
 
 /// <summary>
 /// ENTSO-e period entity.
 /// </summary>
-[Serializable]
 public class EntsoePeriod
 {
     /// <summary>

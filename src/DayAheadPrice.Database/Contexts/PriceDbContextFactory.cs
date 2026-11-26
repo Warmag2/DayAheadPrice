@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
 
-namespace DayAheadPrice.Database.Contexts;
+namespace Faemiyah.DayAheadPrice.Database.Contexts;
 
 /// <summary>
 /// This design time context factory is used by EF Core tooling to add/remove migrations without the
@@ -16,7 +16,6 @@ public class PriceDesignContextFactory : IDesignTimeDbContextFactory<PriceDbCont
         var configuration = new ConfigurationBuilder()
             .AddJsonFile("appsettings.json", optional: true)
             .AddJsonFile("appsettings.Development.json", optional: true)
-            .AddUserSecrets<PriceDesignContextFactory>(optional: true)
             .AddEnvironmentVariables()
             .Build();
 

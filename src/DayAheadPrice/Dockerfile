@@ -15,4 +15,4 @@ WORKDIR /app
 COPY --chown=app:app --from=build /app/publish .
 RUN mkdir -p /app/dpkeys && chown app:app /app/dpkeys
 USER app
-ENTRYPOINT ["dotnet", "DayAheadPrice.dll"]
+ENTRYPOINT ["dotnet", "Faemiyah.DayAheadPrice.dll"]

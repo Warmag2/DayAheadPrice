@@ -1,21 +1,23 @@
-@using DayAheadPrice.Components.Elements
-@using DayAheadPrice.Entities
-@using DayAheadPrice.Enums
-@using DayAheadPrice.Extensions
-@using DayAheadPrice.Logic
-@using static DayAheadPrice.Logic.GridScaleSelector
+@using Faemiyah.DayAheadPrice.Components.Elements
+@using Faemiyah.DayAheadPrice.Entities
+@using Faemiyah.DayAheadPrice.Enums
+@using Faemiyah.DayAheadPrice.Extensions
+@using Faemiyah.DayAheadPrice.Logic
+@using static Faemiyah.DayAheadPrice.Logic.GridScaleSelector
 @implements IAsyncDisposable
-@inject PriceContainer _priceContainer
+@inject PriceIngestionService _ingestion
 @inject PriceSeriesService _priceSeriesService
 @inject NavigationManager _navigationManager
 @inject IJSRuntime _js
+@inject TimeZoneInfo _timeZone
+@inject TimeProvider _timeProvider
 
-<div class="fullwidth page explorer" data-theme="@(Theme is "light" or "dark" ? Theme : "dark")">
+<div class="fullwidth page explorer" data-theme="@Theme">
     <div class="explorertopbar">
         <div class="explorercontrols">
-            <button type="button" class="explorerbutton ctl-up" disabled=@(_view == null || !_view.ZoomIndex.CanZoomIn()) @onclick="ZoomIn" title="Zoom in">&#9650;</button>
+            <button type="button" class="explorerbutton ctl-up" disabled=@(_view?.CanZoomIn != true) @onclick="ZoomIn" title="Zoom in">&#9650;</button>
             <button type="button" class="explorerbutton ctl-left" disabled=@(_view?.CanPanLeft != true) @onclick="PanLeft" title="Back in time">&#9664;</button>
-            <button type="button" class="explorerbutton ctl-down" disabled=@(_view == null || !_view.ZoomIndex.CanZoomOut()) @onclick="ZoomOut" title="Zoom out">&#9660;</button>
+            <button type="button" class="explorerbutton ctl-down" disabled=@(_view?.CanZoomOut != true) @onclick="ZoomOut" title="Zoom out">&#9660;</button>
             <button type="button" class="explorerbutton ctl-right" disabled=@(_view?.CanPanRight != true) @onclick="PanRight" title="Forward in time">&#9654;</button>
         </div>
 
@@ -49,7 +51,7 @@
     [Parameter]
     public int? Zoom { get; set; }
 
-    /// <summary>The window anchor as local-time ticks, from the "a" query parameter; <b>null</b> means the live view.</summary>
+    /// <summary>The window anchor as UTC ticks, from the "a" query parameter; <b>null</b> means the live view.</summary>
     [Parameter]
     public long? Anchor { get; set; }
 
@@ -67,7 +69,7 @@
 
     private DotNetObjectReference<PriceExplorer>? _selfRef;
     private PriceView? _view;
-    private SortedList<DateTime, decimal> _adjustedPrices = [];
+    private SortedList<DateTime, decimal?> _adjustedPrices = [];
     private decimal _ceilPrice;
     private decimal _floorPrice;
 
@@ -76,7 +78,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await _priceContainer.EnsureFreshAsync();
+        await _ingestion.EnsureFreshAsync();
     }
 
     protected override async Task OnParametersSetAsync()
@@ -135,7 +137,7 @@
             : ZoomLevels.FinestIndex;
 
         DateTime? anchor = Anchor is long ticks && ticks >= DateTime.MinValue.Ticks && ticks <= DateTime.MaxValue.Ticks
-            ? new DateTime(ticks, DateTimeKind.Local)
+            ? new DateTime(ticks, DateTimeKind.Utc)
             : null;
 
         return new PriceViewState(zoom, anchor);
@@ -145,7 +147,7 @@
     {
         if (_view is { CanPanLeft: true })
         {
-            Navigate(PriceSeriesService.PanLeft(_view));
+            Navigate(PriceNavigation.PanLeft(_view, _timeZone));
         }
     }
 
@@ -153,23 +155,23 @@
     {
         if (_view is { CanPanRight: true })
         {
-            Navigate(PriceSeriesService.PanRight(_view));
+            Navigate(PriceNavigation.PanRight(_view, _timeZone, _timeProvider.GetUtcNow().UtcDateTime));
         }
     }
 
     private void ZoomIn()
     {
-        if (_view != null && _view.ZoomIndex.CanZoomIn())
+        if (_view is { CanZoomIn: true })
         {
-            Navigate(PriceSeriesService.ZoomIn(_view));
+            Navigate(PriceNavigation.ZoomIn(_view));
         }
     }
 
     private void ZoomOut()
     {
-        if (_view != null && _view.ZoomIndex.CanZoomOut())
+        if (_view is { CanZoomOut: true })
         {
-            Navigate(PriceSeriesService.ZoomOut(_view));
+            Navigate(PriceNavigation.ZoomOut(_view));
         }
     }
 
@@ -188,12 +190,10 @@
     /// </summary>
     private void Navigate(PriceViewState state)
     {
-        var isLive = state.ZoomIndex == ZoomLevels.FinestIndex && state.AnchorLocal == null;
-
         var uri = _navigationManager.GetUriWithQueryParameters(new Dictionary<string, object?>
         {
-            ["z"] = isLive ? null : state.ZoomIndex,
-            ["a"] = state.AnchorLocal.HasValue ? state.AnchorLocal.Value.Ticks : (long?)null
+            ["z"] = state.IsLive ? null : state.ZoomIndex,
+            ["a"] = state.AnchorUtc.HasValue ? state.AnchorUtc.Value.Ticks : (long?)null
         });
 
         _navigationManager.NavigateTo(uri, forceLoad: false, replace: true);
@@ -207,34 +207,44 @@
 
         foreach (var (time, price) in _view.Bars)
         {
-            _adjustedPrices.Add(time, price.ApplyMarginAndVat(Margin, Vat));
+            _adjustedPrices.Add(time, price?.ApplyMarginAndVat(Margin, Vat));
         }
 
         if (_adjustedPrices.Count > 0)
         {
-            var maxPrice = _adjustedPrices.Values.Max();
-            var minPrice = Math.Min(_adjustedPrices.Values.Min(), 0.0m);
-            var gridScale = GetGridScale((int)Math.Ceiling(maxPrice), (int)Math.Floor(minPrice));
-            _ceilPrice = (int)Math.Ceiling(maxPrice / gridScale) * gridScale;
-            _floorPrice = (int)Math.Floor(minPrice / gridScale) * gridScale;
+            // Unavailable bars are drawn full height whatever the scale, so only priced bars shape the axis.
+            (_ceilPrice, _floorPrice) = GetAxis(_adjustedPrices.Values);
+        }
 
-            // Reset the headers to the first visible bar so a view change immediately shows where we are, instead of
-            // whatever bar happened to be hovered before.
-            // Exception is made for live view, which should show current time and price
-            var isLive = state.ZoomIndex == ZoomLevels.FinestIndex && state.AnchorLocal == null;
-            var displayPrice = isLive ? _adjustedPrices.SingleOrDefault(p => p.Key == DateTime.Now.Floor(CalendarUnit.Quarter)) : _adjustedPrices.First();
-            // Theoretically we can get a default value, so guard for that
-            if (displayPrice.Key != default)
-            {
-                _priceString = $"{displayPrice.Value.ToString("0.00")}c/kWh";
-                _timeString = DateTimeExtensions.DescribeSpan(displayPrice.Key, _view.Resolution.AddTo(displayPrice.Key));
-            }
+        // Reset the headers so a view change immediately shows where we are, instead of whatever bar happened to be
+        // hovered before: the current quarter in the live view, otherwise the first visible bar. When there is no such
+        // bar, show the whole window.
+        if (FindHeaderBar() is { } shown)
+        {
+            _priceString = shown.Value.FormatPrice();
+            _timeString = DateTimeExtensions.DescribeSpan(shown.Key, _view.Resolution.AddTo(shown.Key, _timeZone), _timeZone);
         }
         else
         {
             _priceString = string.Empty;
-            _timeString = DateTimeExtensions.DescribeSpan(_view.FromLocal, _view.ToLocal);
+            _timeString = DateTimeExtensions.DescribeSpan(_view.FromUtc, _view.ToUtc, _timeZone);
         }
+    }
+
+    /// <summary>
+    /// Pick the bar the headers describe after a view change.
+    /// </summary>
+    /// <returns>The current quarter's bar in the live view, otherwise the first bar; <b>null</b> when there is none.</returns>
+    private KeyValuePair<DateTime, decimal?>? FindHeaderBar()
+    {
+        if (_view is not { IsLive: true })
+        {
+            return _adjustedPrices.Count > 0 ? _adjustedPrices.First() : null;
+        }
+
+        var nowQuarterUtc = _timeProvider.GetUtcNow().UtcDateTime.FloorLocal(CalendarUnit.Quarter, _timeZone);
+
+        return _adjustedPrices.TryGetValue(nowQuarterUtc, out var nowPrice) ? new(nowQuarterUtc, nowPrice) : null;
     }
 
     public async ValueTask DisposeAsync()

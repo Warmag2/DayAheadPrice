@@ -1,47 +1,40 @@
-﻿@using DayAheadPrice.Extensions
-@using static DayAheadPrice.Logic.GridScaleSelector
+@using Faemiyah.DayAheadPrice.Extensions
 @inherits ComponentBase
+@inject TimeZoneInfo _timeZone
 
 @{
-    var gridScale = GetGridScale(Max, Min);
-    var gridHeightPercent = gridScale * 100 / (Max - Math.Min(Min, 0.0m));
-    var barHeightPercent = 100 * Price / (Max - Min); // May be negative
-    var barVisible = Price != 0;
+    var price = Price ?? 0m;
+    var barHeightPercent = 100 * price / (Max - Min); // May be negative
+    var barVisible = price != 0;
 
-    var eventToRun = $"setPriceData(event, '{GetPriceString()}', '{GetTimeString()}')";
+    var eventToRun = $"setPriceData(event, '{Price.FormatPrice()}', '{GetTimeString()}')";
 }
 
 <div class="histogrambar" onmouseenter=@(eventToRun) ontouchstart=@(eventToRun)>
-    @if (Time == DateTime.MinValue)
+    @if (Price == null)
     {
-        var gridLines = (int)Math.Round(100.0m / gridHeightPercent);
-        for (int ii = 0; ii < gridLines; ii++)
-        {
-            <div class="noprice gridhost" style=@($"flex:{gridHeightPercent.ToString("#.###")}")>
-                <div class="fullwidth gridnumber">@($"{Max - ((ii+1)*gridScale)}")</div>
-            </div>
-        }
+        <div class="unavailable" style="flex:1" />
     }
     else if (barHeightPercent >= 0)
     {
-        <div class="noprice" style=@($"flex:{(100*(Max-Price)/(Max-Min)).ToString("#.###")}") />
+        <div class="noprice" style=@($"flex:{(100*(Max-price)/(Max-Min)).ToCss()}") />
         @if (barVisible)
         {
-            <div class="price" style=@($"flex:{barHeightPercent.ToString("#.###")}") />
+            <div class="price" style=@($"flex:{barHeightPercent.ToCss()}") />
         }
         @if (Min < 0)
         {
-            <div class="noprice" style=@($"flex:{(100*(-Min)/(Max-Min)).ToString("#.###")}") />
+            <div class="noprice" style=@($"flex:{(100*(-Min)/(Max-Min)).ToCss()}") />
         }
     }
     else
     {
         @if (Max > 0)
         {
-            <div class="noprice" style=@($"flex:{(100*Max/(Max-Min)).ToString("#.###")}") />
+            <div class="noprice" style=@($"flex:{(100*Max/(Max-Min)).ToCss()}") />
         }
-        <div class="price" style=@($"flex:{(-barHeightPercent).ToString("#.###")}") />
-        <div class="noprice" style=@($"flex:{(100*(Price-Min)/(Max-Min)).ToString("#.###")}") />
+        <div class="price" style=@($"flex:{(-barHeightPercent).ToCss()}") />
+        <div class="noprice" style=@($"flex:{(100*(price-Min)/(Max-Min)).ToCss()}") />
     }
 </div>
 
@@ -52,25 +45,26 @@
     [Parameter]
     public decimal Min { get; set; }
 
+    /// <summary>
+    /// The bar's price; <b>null</b> when the price is unavailable.
+    /// </summary>
     [Parameter]
-    public decimal Price { get; set; }
+    public decimal? Price { get; set; }
 
+    /// <summary>
+    /// The inclusive start of the bar's time slot, UTC.
+    /// </summary>
     [Parameter]
     public DateTime Time { get; set; }
 
     /// <summary>
-    /// The exclusive end of the bar's time slot, used for the hover tooltip.
+    /// The exclusive end of the bar's time slot, UTC, used for the hover tooltip.
     /// </summary>
     [Parameter]
     public DateTime End { get; set; }
 
-    private string GetPriceString()
-    {
-        return $"{Price.ToString("0.00")}c/kWh";
-    }
-
     private string GetTimeString()
     {
-        return DateTimeExtensions.DescribeSpan(Time, End);
+        return DateTimeExtensions.DescribeSpan(Time, End, _timeZone);
     }
 }

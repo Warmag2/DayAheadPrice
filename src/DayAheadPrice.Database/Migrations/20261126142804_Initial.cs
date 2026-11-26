@@ -4,7 +4,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace DayAheadPrice.Database.Migrations
+namespace Faemiyah.DayAheadPrice.Database.Migrations
 {
     /// <inheritdoc />
     public partial class Initial : Migration
@@ -18,7 +18,7 @@ namespace DayAheadPrice.Database.Migrations
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    Price = table.Column<decimal>(type: "numeric", nullable: false),
+                    Price = table.Column<decimal>(type: "numeric", nullable: true),
                     Domain = table.Column<string>(type: "character varying(16)", maxLength: 16, nullable: false),
                     Currency = table.Column<string>(type: "character varying(3)", maxLength: 3, nullable: false),
                     xmin = table.Column<uint>(type: "xid", rowVersion: true, nullable: false),

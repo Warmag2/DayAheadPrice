@@ -1,0 +1,32 @@
+@inherits ComponentBase
+
+<div class="histogrambar">
+    @for (var line = 1; line <= GridLines; line++)
+    {
+        <div class="noprice gridhost" style=@($"flex:{GridHeightPercent.ToCss()}")>
+            <div class="fullwidth gridnumber">@(Max - line * GridScale)</div>
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>
+    /// The value at the top of the chart.
+    /// </summary>
+    [Parameter]
+    public decimal Max { get; set; }
+
+    /// <summary>
+    /// The value step between grid lines.
+    /// </summary>
+    [Parameter]
+    public decimal GridScale { get; set; }
+
+    /// <summary>
+    /// The height of one grid step, as a percentage of the chart height.
+    /// </summary>
+    [Parameter]
+    public decimal GridHeightPercent { get; set; }
+
+    private int GridLines => (int)Math.Round(100.0m / GridHeightPercent);
+}
