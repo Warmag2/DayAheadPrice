@@ -2,6 +2,10 @@
 ## Actual settings
 ##
 
+[*.{cs,razor}]
+# Editor hint only; Roslyn does not enforce it.
+max_line_length = 132
+
 [*.cs]
 # Organize usings
 csharp_using_directive_placement = outside_namespace
@@ -15,7 +19,7 @@ csharp_prefer_system_threading_lock = true
 csharp_style_namespace_declarations = file_scoped:error
 csharp_style_prefer_method_group_conversion = true:suggestion
 csharp_style_prefer_primary_constructors = true
-csharp_style_prefer_top_level_statements = false:warning
+csharp_style_prefer_top_level_statements = true:silent
 
 # Expression-bodied members
 csharp_style_expression_bodied_accessors = when_on_single_line:suggestion
@@ -100,8 +104,8 @@ dotnet_diagnostic.CA1002.severity = none
 # Use generic event handler instances
 dotnet_diagnostic.CA1003.severity = warning
 
-# Avoid excessive parameters on generic types
-dotnet_diagnostic.CA1005.severity = warning
+# Do not avoid excessive parameters on generic types - sometimes you need more
+dotnet_diagnostic.CA1005.severity = none
 
 # Enums should have zero value - Not always
 dotnet_diagnostic.CA1008.severity = none
@@ -703,6 +707,9 @@ dotnet_diagnostic.IDE0280.severity = suggestion
 # Disagree about clarity of primary constructor
 dotnet_diagnostic.IDE0290.severity = none
 
+# .ToList() is just fine
+dotnet_diagnostic.IDE0305.severity = none
+
 ##
 ## StyleCop.Analyzers
 ##
@@ -798,3 +805,8 @@ dotnet_diagnostic.ORLEANS0005.severity = none
 
 # No alias nagging please
 dotnet_diagnostic.ORLEANS0010.severity = none
+
+# EF Core migrations are generated.
+[**/Migrations/*.cs]
+generated_code = true
+

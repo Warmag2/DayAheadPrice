@@ -1,24 +1,18 @@
 using System.IO;
 using System.Threading;
-using DayAheadPrice.Components;
-using DayAheadPrice.Database.Contexts;
-using DayAheadPrice.Logic;
-using DayAheadPrice.Options;
-using DayAheadPrice.Repositories;
 using Faemiyah.Common.Hosting;
 using Faemiyah.Common.Hosting.Logging;
-using Faemiyah.Repository.Interfaces;
-using Faemiyah.Repository.Options;
-using Faemiyah.Repository.Providers;
+using Faemiyah.DayAheadPrice.Components;
+using Faemiyah.DayAheadPrice.Extensions;
+using Faemiyah.DayAheadPrice.Logic;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 
-namespace DayAheadPrice;
+namespace Faemiyah.DayAheadPrice;
 
 /// <summary>
 /// Main program class.
@@ -41,28 +35,21 @@ internal static class Program
         builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 
         // Custom services
-        builder.Services.Configure<EndpointOptions>(builder.Configuration.GetSection("EndpointOptions"));
-        builder.Services.Configure<PricingOptions>(builder.Configuration.GetSection("PricingOptions"));
-        builder.Services.Configure<PersistenceOptions>(builder.Configuration.GetSection("PersistenceOptions"));
-        builder.Services.Configure<SqlOptions>(builder.Configuration.GetSection("SqlOptions"));
-
-        // Price persistence (Faemiyah.Repository-based PostgreSQL storage).
-        builder.Services.AddSingleton<IConnectionStringAccessor, PgSqlConnectionStringAccessor>();
-        builder.Services.AddSingleton<IDatabaseContextProvider<PriceDbContext>, PriceDbContextProvider>();
-        builder.Services.AddSingleton<PricePointRepository>();
-        builder.Services.AddSingleton<LivePriceState>();
-        builder.Services.AddSingleton<PriceSeriesService>();
-
-        builder.Services.AddSingleton<PriceContainer>();
+        builder.Services.AddPriceServices(builder.Configuration);
         builder.Services.AddDataProtection().SetApplicationName("DayAheadPrice").PersistKeysToFileSystem(new DirectoryInfo(builder.Configuration["DataProtectionKeysPath"] ?? "/app/dpkeys/"));
 
         var app = builder.Build();
 
         // Configure the HTTP request pipeline.
-        app.UseForwardedHeaders(new ForwardedHeadersOptions
+        // The host reverse proxy reaches the container from a non-loopback gateway address, so trust any source. This is
+        // safe only while the container port is published on the host's loopback interface alone.
+        var forwardedHeadersOptions = new ForwardedHeadersOptions
         {
-            ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
-        });
+            ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost
+        };
+        forwardedHeadersOptions.KnownIPNetworks.Clear();
+        forwardedHeadersOptions.KnownProxies.Clear();
+        app.UseForwardedHeaders(forwardedHeadersOptions);
 
         if (!app.Environment.IsDevelopment())
         {

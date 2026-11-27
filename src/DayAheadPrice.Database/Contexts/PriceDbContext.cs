@@ -1,7 +1,7 @@
-using DayAheadPrice.Database.Entities;
+using Faemiyah.DayAheadPrice.Database.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace DayAheadPrice.Database.Contexts;
+namespace Faemiyah.DayAheadPrice.Database.Contexts;
 
 /// <summary>
 /// Database context for stored electricity prices.

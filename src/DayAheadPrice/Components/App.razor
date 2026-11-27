@@ -6,7 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
     <link rel="stylesheet" href="./dayaheadprice.css" />
-    <link rel="stylesheet" href="./DayAheadPrice.styles.css" />
     <link rel="icon" type="image/png" href="favicon_faemiyah.png" />
     <meta property="og:site_name" content="DayAheadPrice" />
     <meta property="og:title" content="DayAheadPrice" />
@@ -16,7 +15,7 @@
     <HeadOutlet />
 </head>
 
-<body>
+<body data-theme="@Theme.Resolve(HttpContext.Request.Query["theme"])">
     <Routes />
     <script src="explorer.js"></script>
     <script src="_framework/blazor.web.js"></script>

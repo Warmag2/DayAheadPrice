@@ -1,13 +1,13 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Faemiyah.Repository.Interfaces;
 using Faemiyah.Repository.Options;
 using Faemiyah.Repository.Providers;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
-namespace DayAheadPrice.Database.Contexts;
+namespace Faemiyah.DayAheadPrice.Database.Contexts;
 
 /// <summary>
 /// Provides <see cref="PriceDbContext"/> instances, creating and migrating the database on first use.

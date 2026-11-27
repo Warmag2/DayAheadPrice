@@ -6,6 +6,7 @@ WORKDIR /app
 
 FROM faemiyahsdk:latest AS build
 WORKDIR /build
+COPY ["Directory.Build.props", ".editorconfig", "./"]
 COPY ["src/", "src/"]
 WORKDIR "/build/src/DayAheadPrice"
 RUN dotnet publish "DayAheadPrice.csproj" -c Release -o /app/publish
@@ -15,4 +16,4 @@ WORKDIR /app
 COPY --chown=app:app --from=build /app/publish .
 RUN mkdir -p /app/dpkeys && chown app:app /app/dpkeys
 USER app
-ENTRYPOINT ["dotnet", "DayAheadPrice.dll"]
+ENTRYPOINT ["dotnet", "Faemiyah.DayAheadPrice.dll"]

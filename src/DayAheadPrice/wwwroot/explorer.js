@@ -1,25 +1,43 @@
-// Updates the on-page Time/Price headers from the inline hover handlers on histogram bars.
-function setPriceData(_, priceString, timeString) {
+// Updates the on-page Time/Price headers.
+function setPriceData(priceString, timeString) {
     const timeHeader = document.getElementById("TimeHeader");
     const priceHeader = document.getElementById("PriceHeader");
 
     if (timeHeader) {
-        timeHeader.innerHTML = timeString;
+        timeHeader.textContent = timeString;
     }
 
     if (priceHeader) {
-        priceHeader.innerHTML = priceString;
+        priceHeader.textContent = priceString;
     }
 }
 
+// One delegated listener for every histogram bar, which carries its texts in data-price/data-time attributes.
+// Registered on the document so it keeps working however Blazor re-renders the chart.
+function showBarData(event) {
+    const bar = event.target instanceof Element ? event.target.closest(".histogrambar") : null;
+
+    if (bar) {
+        setPriceData(bar.dataset.price, bar.dataset.time);
+    }
+}
+
+document.addEventListener("mouseover", showBarData);
+document.addEventListener("touchstart", showBarData, { passive: true });
+
 // Document-level keyboard navigation for the price explorer. A global listener is used so the
-// arrow/End keys work without the component first having to be focused.
+// arrow/End keys work without the component first having to be focused. Modified keys (e.g. Alt+Left for
+// browser Back) and keys typed into editable elements are left to the browser.
 window.dapExplorer = {
     _handler: null,
     register: function (dotNetRef) {
         this.unregister();
 
         this._handler = function (event) {
+            if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || isEditable(event.target)) {
+                return;
+            }
+
             switch (event.key) {
                 case "ArrowLeft":
                 case "ArrowRight":
@@ -43,3 +61,8 @@ window.dapExplorer = {
         }
     }
 };
+
+function isEditable(element) {
+    return element instanceof HTMLElement
+        && (element.isContentEditable || element.closest("input, select, textarea") !== null);
+}

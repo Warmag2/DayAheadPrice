@@ -1,14 +1,14 @@
-﻿@using DayAheadPrice.Enums
-@using DayAheadPrice.Extensions
-@using DayAheadPrice.Logic
-@using static DayAheadPrice.Logic.GridScaleSelector
-@inherits ComponentBase
+@using Faemiyah.DayAheadPrice.Enums
+@using Faemiyah.DayAheadPrice.Extensions
+@using Faemiyah.DayAheadPrice.Logic
+@inject TimeZoneInfo _timeZone
+@inject TimeProvider _timeProvider
 
 @{
-    var gridScale = GetGridScale(Max, Min);
-    var gridHeightPercent = gridScale * 100 / (Max - Math.Min(Min, 0.0m));
-    var gridStyle = $"--grid-h: {gridHeightPercent.ToString("#.###")}%";
-    var now = DateTime.Now;
+    var gridHeightPercent = GridScale * 100 / (Max - Min);
+    var gridStyle = $"--grid-h: {gridHeightPercent.ToCss()}%";
+    var nowUtc = _timeProvider.GetUtcNow().UtcDateTime;
+    var today = nowUtc.ToLocalWall(_timeZone).Date;
 }
 
 <div class="histogramblock">
@@ -18,15 +18,15 @@
         </div>
     </div>
     <div class="histogramcontent" style=@gridStyle>
-        <HistogramBar Max=@Max Min=@Min Price=0m Time=@DateTime.MinValue End=@DateTime.MinValue />
+        <HistogramAxis Max=@Max GridScale=@GridScale GridHeightPercent=@gridHeightPercent />
     </div>
 </div>
 
-@foreach (var priceGroup in Prices.GroupBy(p => p.Key.Floor(HeaderUnit)))
+@foreach (var priceGroup in Prices.GroupBy(p => p.Key.FloorLocal(HeaderUnit, _timeZone)))
 {
-    var groupEnd = GroupEnd(priceGroup.Key);
-    var currentGroup = priceGroup.Key <= now && now < groupEnd;
-    var currentDay = HeaderUnit != CalendarUnit.Month && priceGroup.Key.Date == now.Date && !currentGroup;
+    var groupEnd = new CalendarStep(HeaderUnit, 1).AddTo(priceGroup.Key, _timeZone);
+    var currentGroup = priceGroup.Key <= nowUtc && nowUtc < groupEnd;
+    var currentDay = HeaderUnit != CalendarUnit.Month && priceGroup.Key.ToLocalWall(_timeZone).Date == today && !currentGroup;
 
     List<string> backgroundClasses = [];
 
@@ -37,7 +37,7 @@
 
     if (currentGroup)
     {
-        backgroundClasses.Add("currenthour");
+        backgroundClasses.Add("currentgroup");
     }
 
     <div class="histogramblock leftborder">
@@ -49,21 +49,30 @@
         <div class=@(string.Join(' ', backgroundClasses.Concat(["histogramcontent"]))) style=@gridStyle>
             @foreach (var (time, price) in priceGroup)
             {
-                <HistogramBar Max=@Max Min=@Min Price=@price Time=@time End=@(Resolution.AddTo(time)) />
+                <HistogramBar Max=@Max Min=@Min Price=@price Time=@time End=@(Resolution.AddTo(time, _timeZone)) />
             }
         </div>
     </div>
 }
 
 @code {
+    /// <summary>The axis top, from <see cref="GridScaleSelector.GetAxis"/>.</summary>
     [Parameter]
     public decimal Max { get; set; }
 
+    /// <summary>The axis bottom (never above zero), from <see cref="GridScaleSelector.GetAxis"/>.</summary>
     [Parameter]
     public decimal Min { get; set; }
 
+    /// <summary>The grid step the axis was rounded to, from <see cref="GridScaleSelector.GetAxis"/>.</summary>
     [Parameter]
-    public SortedList<DateTime, decimal> Prices { get; set; } = [];
+    public decimal GridScale { get; set; }
+
+    /// <summary>
+    /// The bars, keyed by UTC slot start.
+    /// </summary>
+    [Parameter]
+    public SortedList<DateTime, decimal?> Prices { get; set; } = [];
 
     /// <summary>
     /// The width of one bar.
@@ -77,19 +86,10 @@
     [Parameter]
     public CalendarUnit HeaderUnit { get; set; } = CalendarUnit.Hour;
 
-    private DateTime GroupEnd(DateTime groupStart)
+    private string GroupLabel(DateTime groupStartUtc)
     {
-        return HeaderUnit switch
-        {
-            CalendarUnit.Year => groupStart.AddYears(1),
-            CalendarUnit.Month => groupStart.AddMonths(1),
-            CalendarUnit.Day => groupStart.AddDays(1),
-            _ => groupStart.AddHours(1)
-        };
-    }
+        var groupStart = groupStartUtc.ToLocalWall(_timeZone);
 
-    private string GroupLabel(DateTime groupStart)
-    {
         return HeaderUnit switch
         {
             CalendarUnit.Year => groupStart.Year.ToString(),

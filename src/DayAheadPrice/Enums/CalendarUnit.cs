@@ -1,4 +1,4 @@
-namespace DayAheadPrice.Enums;
+namespace Faemiyah.DayAheadPrice.Enums;
 
 /// <summary>
 /// A calendar unit, used both for flooring instants and for grouping / aligning price windows.

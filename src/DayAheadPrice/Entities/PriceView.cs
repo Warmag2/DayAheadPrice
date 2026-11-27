@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
-using DayAheadPrice.Enums;
-using DayAheadPrice.Logic;
+using Faemiyah.DayAheadPrice.Enums;
+using Faemiyah.DayAheadPrice.Logic;
 
-namespace DayAheadPrice.Entities;
+namespace Faemiyah.DayAheadPrice.Entities;
 
 /// <summary>
 /// A rendered price window: the display bars plus everything the page needs to draw and navigate it.
@@ -11,9 +11,10 @@ namespace DayAheadPrice.Entities;
 internal sealed class PriceView
 {
     /// <summary>
-    /// The display bars, keyed by local slot start, holding raw prices (before margin and VAT).
+    /// The display bars, keyed by UTC slot start, holding raw prices (before margin and VAT); <b>null</b> marks a bar
+    /// whose period the source has no price for.
     /// </summary>
-    public SortedList<DateTime, decimal> Bars { get; init; } = [];
+    public SortedList<DateTime, decimal?> Bars { get; init; } = [];
 
     /// <summary>
     /// The width of one bar.
@@ -26,19 +27,29 @@ internal sealed class PriceView
     public CalendarUnit HeaderUnit { get; init; }
 
     /// <summary>
-    /// The inclusive local start of the window.
+    /// The inclusive start of the window, UTC.
     /// </summary>
-    public DateTime FromLocal { get; init; }
+    public DateTime FromUtc { get; init; }
 
     /// <summary>
-    /// The exclusive local end of the window.
+    /// The exclusive end of the window, UTC.
     /// </summary>
-    public DateTime ToLocal { get; init; }
+    public DateTime ToUtc { get; init; }
 
     /// <summary>
     /// The zoom level index this view was rendered at.
     /// </summary>
     public int ZoomIndex { get; init; }
+
+    /// <summary>
+    /// Whether a finer zoom level exists.
+    /// </summary>
+    public bool CanZoomIn => ZoomIndex > ZoomLevels.FinestIndex;
+
+    /// <summary>
+    /// Whether a coarser zoom level exists.
+    /// </summary>
+    public bool CanZoomOut => ZoomIndex < ZoomLevels.CoarsestIndex;
 
     /// <summary>
     /// Whether this is the live view (finest zoom, tracking the current time).

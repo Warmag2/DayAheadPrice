@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace DayAheadPrice.Entities;
+namespace Faemiyah.DayAheadPrice.Entities;
 
 /// <summary>
 /// A compact summary of one day's electricity prices, returned by the public summary endpoint.
