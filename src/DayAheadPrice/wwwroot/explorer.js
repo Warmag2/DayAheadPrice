@@ -13,9 +13,10 @@ function setPriceData(priceString, timeString) {
 }
 
 // One delegated listener for every histogram bar, which carries its texts in data-price/data-time attributes.
-// Registered on the document so it keeps working however Blazor re-renders the chart.
+// Registered on the document so it keeps working however Blazor re-renders the chart. The axis column shares
+// the histogrambar class but carries no data, so only bars with data-price are matched.
 function showBarData(event) {
-    const bar = event.target instanceof Element ? event.target.closest(".histogrambar") : null;
+    const bar = event.target instanceof Element ? event.target.closest(".histogrambar[data-price]") : null;
 
     if (bar) {
         setPriceData(bar.dataset.price, bar.dataset.time);
