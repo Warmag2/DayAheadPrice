@@ -1,14 +1,11 @@
 @using Faemiyah.DayAheadPrice.Enums
 @using Faemiyah.DayAheadPrice.Extensions
 @using Faemiyah.DayAheadPrice.Logic
-@using static Faemiyah.DayAheadPrice.Logic.GridScaleSelector
-@inherits ComponentBase
 @inject TimeZoneInfo _timeZone
 @inject TimeProvider _timeProvider
 
 @{
-    var gridScale = GetGridScale(Max, Min);
-    var gridHeightPercent = gridScale * 100 / (Max - Math.Min(Min, 0.0m));
+    var gridHeightPercent = GridScale * 100 / (Max - Min);
     var gridStyle = $"--grid-h: {gridHeightPercent.ToCss()}%";
     var nowUtc = _timeProvider.GetUtcNow().UtcDateTime;
     var today = nowUtc.ToLocalWall(_timeZone).Date;
@@ -21,7 +18,7 @@
         </div>
     </div>
     <div class="histogramcontent" style=@gridStyle>
-        <HistogramAxis Max=@Max GridScale=@gridScale GridHeightPercent=@gridHeightPercent />
+        <HistogramAxis Max=@Max GridScale=@GridScale GridHeightPercent=@gridHeightPercent />
     </div>
 </div>
 
@@ -40,7 +37,7 @@
 
     if (currentGroup)
     {
-        backgroundClasses.Add("currenthour");
+        backgroundClasses.Add("currentgroup");
     }
 
     <div class="histogramblock leftborder">
@@ -59,11 +56,17 @@
 }
 
 @code {
+    /// <summary>The axis top, from <see cref="GridScaleSelector.GetAxis"/>.</summary>
     [Parameter]
     public decimal Max { get; set; }
 
+    /// <summary>The axis bottom (never above zero), from <see cref="GridScaleSelector.GetAxis"/>.</summary>
     [Parameter]
     public decimal Min { get; set; }
+
+    /// <summary>The grid step the axis was rounded to, from <see cref="GridScaleSelector.GetAxis"/>.</summary>
+    [Parameter]
+    public decimal GridScale { get; set; }
 
     /// <summary>
     /// The bars, keyed by UTC slot start.

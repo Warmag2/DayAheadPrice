@@ -1,24 +1,16 @@
-using System;
 using System.IO;
 using System.Threading;
 using Faemiyah.Common.Hosting;
 using Faemiyah.Common.Hosting.Logging;
 using Faemiyah.DayAheadPrice.Components;
-using Faemiyah.DayAheadPrice.Database.Contexts;
-using Faemiyah.DayAheadPrice.Database.Repositories;
 using Faemiyah.DayAheadPrice.Extensions;
 using Faemiyah.DayAheadPrice.Logic;
-using Faemiyah.DayAheadPrice.Options;
-using Faemiyah.Repository.Interfaces;
-using Faemiyah.Repository.Options;
-using Faemiyah.Repository.Providers;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Options;
 
 namespace Faemiyah.DayAheadPrice;
 
@@ -43,24 +35,7 @@ internal static class Program
         builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 
         // Custom services
-        builder.Services.AddOptions<EndpointOptions>().Bind(builder.Configuration.GetSection("EndpointOptions")).ValidateDataAnnotations().ValidateOnStart();
-        builder.Services.AddOptions<PricingOptions>().Bind(builder.Configuration.GetSection("PricingOptions")).ValidateDataAnnotations().ValidateOnStart();
-        builder.Services.AddOptions<DisplayOptions>().Bind(builder.Configuration.GetSection("DisplayOptions")).ValidateDataAnnotations().ValidateOnStart();
-        builder.Services.Configure<SqlOptions>(builder.Configuration.GetSection("SqlOptions"));
-
-        // The display time zone, shared by everything that aligns to or shows the local calendar.
-        builder.Services.AddSingleton(sp => TimeZoneInfo.FindSystemTimeZoneById(sp.GetRequiredService<IOptions<DisplayOptions>>().Value.TimeZone));
-        builder.Services.AddSingleton(TimeProvider.System);
-
-        // Price persistence (Faemiyah.Repository-based PostgreSQL storage).
-        builder.Services.AddSingleton<IConnectionStringAccessor, PgSqlConnectionStringAccessor>();
-        builder.Services.AddSingleton<IDatabaseContextProvider<PriceDbContext>, PriceDbContextProvider>();
-        builder.Services.AddSingleton<PricePointRepository>();
-        builder.Services.AddSingleton<LivePriceState>();
-        builder.Services.AddSingleton<PriceSeriesService>();
-
-        builder.Services.AddPriceSource();
-        builder.Services.AddSingleton<PriceIngestionService>();
+        builder.Services.AddPriceServices(builder.Configuration);
         builder.Services.AddDataProtection().SetApplicationName("DayAheadPrice").PersistKeysToFileSystem(new DirectoryInfo(builder.Configuration["DataProtectionKeysPath"] ?? "/app/dpkeys/"));
 
         var app = builder.Build();

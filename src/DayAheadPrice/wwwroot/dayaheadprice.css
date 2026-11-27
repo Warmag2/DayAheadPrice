@@ -64,7 +64,7 @@ body {
     --color-unavailable: rgba(239, 68, 68, 0.35);
     --color-unavailable-border: #F87171;
     --color-hover: #C47319;
-    --color-currenthour: #92400E;
+    --color-currentgroup: #92400E;
     --color-currentday: #1F2937;
 }
 
@@ -77,7 +77,7 @@ body {
     --color-unavailable: rgba(200, 0, 0, 0.35);
     --color-unavailable-border: darkred;
     --color-hover: #6787B7;
-    --color-currenthour: #A797E7;
+    --color-currentgroup: #A797E7;
     --color-currentday: #D8D8D8;
 }
 
@@ -105,8 +105,8 @@ div.pagecontent {
     min-height: 0;
 }
 
-div.currenthour {
-    background-color: var(--color-currenthour);
+div.currentgroup {
+    background-color: var(--color-currentgroup);
 }
 
 div.currentday {

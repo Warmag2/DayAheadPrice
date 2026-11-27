@@ -1,5 +1,5 @@
-// Updates the on-page Time/Price headers from the inline hover handlers on histogram bars.
-function setPriceData(_, priceString, timeString) {
+// Updates the on-page Time/Price headers.
+function setPriceData(priceString, timeString) {
     const timeHeader = document.getElementById("TimeHeader");
     const priceHeader = document.getElementById("PriceHeader");
 
@@ -11,6 +11,19 @@ function setPriceData(_, priceString, timeString) {
         priceHeader.textContent = priceString;
     }
 }
+
+// One delegated listener for every histogram bar, which carries its texts in data-price/data-time attributes.
+// Registered on the document so it keeps working however Blazor re-renders the chart.
+function showBarData(event) {
+    const bar = event.target instanceof Element ? event.target.closest(".histogrambar") : null;
+
+    if (bar) {
+        setPriceData(bar.dataset.price, bar.dataset.time);
+    }
+}
+
+document.addEventListener("mouseover", showBarData);
+document.addEventListener("touchstart", showBarData, { passive: true });
 
 // Document-level keyboard navigation for the price explorer. A global listener is used so the
 // arrow/End keys work without the component first having to be focused. Modified keys (e.g. Alt+Left for

@@ -1,10 +1,10 @@
-@inherits ComponentBase
+@using System.Globalization
 
 <div class="histogrambar">
     @for (var line = 1; line <= GridLines; line++)
     {
         <div class="noprice gridhost" style=@($"flex:{GridHeightPercent.ToCss()}")>
-            <div class="fullwidth gridnumber">@(Max - line * GridScale)</div>
+            <div class="fullwidth gridnumber">@((Max - line * GridScale).ToString("0.###", CultureInfo.InvariantCulture))</div>
         </div>
     }
 </div>

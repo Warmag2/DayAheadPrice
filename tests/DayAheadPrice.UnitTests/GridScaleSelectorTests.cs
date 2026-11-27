@@ -18,7 +18,7 @@ public sealed class GridScaleSelectorTests
         var axis = GridScaleSelector.GetAxis(prices);
 
         // Assert
-        axis.Should().Be((8m, 0m));
+        axis.Should().Be((8m, 0m, 1m));
     }
 
     [Test]
@@ -31,7 +31,7 @@ public sealed class GridScaleSelectorTests
         var axis = GridScaleSelector.GetAxis(prices);
 
         // Assert
-        axis.Should().Be((0m, -3.5m));
+        axis.Should().Be((0m, -3.5m, 0.5m));
     }
 
     [Test]
@@ -44,7 +44,7 @@ public sealed class GridScaleSelectorTests
         var axis = GridScaleSelector.GetAxis(prices);
 
         // Assert
-        axis.Should().Be((1m, 0m));
+        axis.Should().Be((1m, 0m, 0.1m));
     }
 
     [Test]
@@ -57,7 +57,7 @@ public sealed class GridScaleSelectorTests
         var axis = GridScaleSelector.GetAxis(prices);
 
         // Assert
-        axis.Should().Be((2m, 0m));
+        axis.Should().Be((2m, 0m, 0.2m));
     }
 
     [Test]
@@ -70,7 +70,20 @@ public sealed class GridScaleSelectorTests
         var axis = GridScaleSelector.GetAxis(prices);
 
         // Assert
-        axis.Should().Be((1m, 0m));
+        axis.Should().Be((1m, 0m, 0.1m));
+    }
+
+    [Test]
+    public void GetAxis_RangeCrossingAScaleBucketAfterRounding_ReturnsTheScaleTheAxisWasRoundedTo()
+    {
+        // Arrange
+        decimal?[] prices = [-0.5m, 18.5m];
+
+        // Act
+        var axis = GridScaleSelector.GetAxis(prices);
+
+        // Assert
+        axis.Should().Be((20m, -2m, 2m));
     }
 
     [Test]

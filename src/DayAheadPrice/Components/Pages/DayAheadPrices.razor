@@ -1,10 +1,11 @@
 @using Faemiyah.DayAheadPrice.Options
 @using Microsoft.Extensions.Options
 @inject IOptions<PricingOptions> _pricingOptions
+@inject IOptions<EndpointOptions> _endpointOptions
 @page "/"
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 
-<PageTitle>Day-ahead electricity prices (Finland)</PageTitle>
+<PageTitle>@Title</PageTitle>
 
 @* The interactive explorer owns the page and drives its zoom/pan position through the "z" and "a" query
    parameters supplied to this route. *@
@@ -27,6 +28,10 @@
     public decimal? Vat { get; set; }
 
     private string ResolvedTheme => Components.Theme.Resolve(Theme);
+
+    private string Title => string.IsNullOrWhiteSpace(_endpointOptions.Value.RegionDisplayName)
+        ? "Day-ahead electricity prices"
+        : $"Day-ahead electricity prices ({_endpointOptions.Value.RegionDisplayName})";
 
     // Out-of-range values (for example a negative VAT, which would zero every price) fall back to the defaults.
     private decimal ResolvedMargin => Margin is { } margin && PricingOptions.IsValidMargin(margin) ? margin : _pricingOptions.Value.Margin;

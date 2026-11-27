@@ -33,14 +33,22 @@ internal static class EntsoeDocumentParser
     /// <summary>
     /// Deserialize and parse a response body.
     /// </summary>
+    /// <remarks>
+    /// A publication document in another namespace than <see cref="Publication_MarketDocument.XmlNamespace"/> (a new
+    /// schema version) is logged as a warning and parsed as if it were in the expected one, since a version bump need
+    /// not change the parts read here. If that yields no prices, the document is rejected instead: an unrecognised
+    /// layout would otherwise read as "no prices", and the caller would store the range as permanently unavailable.
+    /// </remarks>
     /// <param name="xml">The response XML.</param>
     /// <param name="logger">Receives data-quality problems found while parsing.</param>
     /// <returns>The parsed prices; empty when the API reports it has no data for the range.</returns>
-    /// <exception cref="InvalidDataException">The API answered with an error acknowledgement, or the XML is not a publication document.</exception>
+    /// <exception cref="InvalidDataException">
+    /// The API answered with an error acknowledgement, the XML is not a publication document, or a document in an
+    /// unexpected namespace yielded no prices.
+    /// </exception>
     public static PriceList Parse(string xml, ILogger logger)
     {
-        using var stringReader = new StringReader(xml);
-        using var xmlReader = XmlReader.Create(stringReader, new XmlReaderSettings { DtdProcessing = DtdProcessing.Ignore });
+        using var xmlReader = CreateReader(xml);
 
         xmlReader.MoveToContent();
 
@@ -56,19 +64,26 @@ internal static class EntsoeDocumentParser
             throw new InvalidDataException($"The API rejected the request: {reason}");
         }
 
-        Publication_MarketDocument document;
+        const string expected = Publication_MarketDocument.XmlNamespace;
+        var received = xmlReader.NamespaceURI;
 
-        try
+        if (received == expected)
         {
-            document = Serializer.Deserialize(xmlReader) as Publication_MarketDocument
-                ?? throw new InvalidDataException("Could not correctly deserialize data.");
-        }
-        catch (InvalidOperationException ex)
-        {
-            throw new InvalidDataException("The response is not a valid publication document.", ex);
+            return Parse(Deserialize(xmlReader, string.Empty), logger);
         }
 
-        return Parse(document, logger);
+        logger.LogWarning("Unexpected publication document namespace {Received} (expected {Expected}); parsing it as the expected version.", received, expected);
+
+        var mismatch = $" (namespace '{received}', expected '{expected}')";
+        using var remappedReader = CreateReader(received.Length == 0 ? xml : xml.Replace(received, expected, StringComparison.Ordinal));
+        var priceList = Parse(Deserialize(remappedReader, mismatch), logger);
+
+        if (priceList.Prices.Count == 0)
+        {
+            throw new InvalidDataException($"The publication document yielded no prices{mismatch}; its schema may be incompatible.");
+        }
+
+        return priceList;
     }
 
     /// <summary>
@@ -96,6 +111,29 @@ internal static class EntsoeDocumentParser
         }
 
         return priceList;
+    }
+
+    private static XmlReader CreateReader(string xml)
+    {
+        return XmlReader.Create(new StringReader(xml), new XmlReaderSettings { DtdProcessing = DtdProcessing.Ignore, CloseInput = true });
+    }
+
+    /// <summary>
+    /// Deserialize a publication document, turning a malformed one into an <see cref="InvalidDataException"/>.
+    /// </summary>
+    /// <param name="reader">The reader, positioned before or at the root element.</param>
+    /// <param name="detail">Appended to the error message, to name an unexpected namespace.</param>
+    private static Publication_MarketDocument Deserialize(XmlReader reader, string detail)
+    {
+        try
+        {
+            return Serializer.Deserialize(reader) as Publication_MarketDocument
+                ?? throw new InvalidDataException($"Could not correctly deserialize data{detail}.");
+        }
+        catch (InvalidOperationException ex)
+        {
+            throw new InvalidDataException($"The response is not a valid publication document{detail}.", ex);
+        }
     }
 
     private static void AddPeriod(PriceList priceList, EntsoePeriod period, ILogger logger)

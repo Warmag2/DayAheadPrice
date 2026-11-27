@@ -54,8 +54,9 @@ public class PricePointRepository : TemporalRepositoryBase<PriceDbContext, long,
     /// Get the earliest slot start and latest slot end stored for a domain.
     /// </summary>
     /// <remarks>
-    /// Uses a single aggregate query rather than materialising the domain, since the history can grow large and
-    /// this is asked on every page render to bound navigation.
+    /// Two plain <c>MIN</c>/<c>MAX</c> queries rather than one grouped aggregate: PostgreSQL answers each with a single
+    /// index lookup (on <c>(Domain, DateBegin)</c> and <c>DateEnd</c>), so the cost doesn't grow with the history.
+    /// This is asked on every positioned render and live-snapshot reload.
     /// </remarks>
     /// <param name="domain">The bidding zone / domain.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
@@ -66,18 +67,17 @@ public class PricePointRepository : TemporalRepositoryBase<PriceDbContext, long,
     {
         await using var dbContext = await DatabaseContextProvider.GetDbContextAsync(cancellationToken: cancellationToken);
 
-        var bounds = await dbContext.Set<PricePoint>()
-            .AsNoTracking()
-            .Where(p => p.Domain == domain)
-            .GroupBy(p => p.Domain)
-            .Select(g => new { MinUtc = g.Min(p => p.DateBegin), MaxUtc = g.Max(p => p.DateEnd) })
-            .FirstOrDefaultAsync(cancellationToken);
+        var points = dbContext.Set<PricePoint>().AsNoTracking().Where(p => p.Domain == domain);
 
-        if (bounds is not { MinUtc: { } minUtc, MaxUtc: { } maxUtc })
+        // The selectors are nullable, so an empty domain gives null rather than throwing.
+        var minUtc = await points.MinAsync(p => p.DateBegin, cancellationToken);
+        var maxUtc = await points.MaxAsync(p => p.DateEnd, cancellationToken);
+
+        if (minUtc is not { } min || maxUtc is not { } max)
         {
             return null;
         }
 
-        return (minUtc, maxUtc);
+        return (min, max);
     }
 }

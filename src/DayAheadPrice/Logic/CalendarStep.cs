@@ -42,15 +42,23 @@ public readonly record struct CalendarStep(CalendarUnit Unit, int Count)
     /// <summary>
     /// An approximate fixed-length view of this step, used only for rough centring when zooming.
     /// </summary>
-    public TimeSpan Approximate => Unit switch
+    public TimeSpan Approximate => FixedLength ?? Unit switch
+    {
+        CalendarUnit.Day => TimeSpan.FromDays(Count),
+        CalendarUnit.Month => TimeSpan.FromDays(30 * Count),
+        CalendarUnit.Year => TimeSpan.FromDays(365 * Count),
+        _ => throw new NotImplementedException($"Approximating unit {Unit} is not implemented yet."),
+    };
+
+    /// <summary>
+    /// The exact length of a sub-day step, or <b>null</b> for a calendar unit whose length varies.
+    /// </summary>
+    private TimeSpan? FixedLength => Unit switch
     {
         CalendarUnit.Minute => TimeSpan.FromMinutes(Count),
         CalendarUnit.Quarter => QuarterLength * Count,
         CalendarUnit.Hour => TimeSpan.FromHours(Count),
-        CalendarUnit.Day => TimeSpan.FromDays(Count),
-        CalendarUnit.Month => TimeSpan.FromDays(30 * Count),
-        CalendarUnit.Year => TimeSpan.FromDays(365 * Count),
-        _ => TimeSpan.FromDays(Count),
+        _ => null,
     };
 
     private DateTime Shift(DateTime utc, TimeZoneInfo zone, bool forward)
@@ -68,13 +76,7 @@ public readonly record struct CalendarStep(CalendarUnit Unit, int Count)
                 return utc.ToLocalWall(zone).AddYears(count).LocalToUtc(zone, !forward);
         }
 
-        var step = Unit switch
-        {
-            CalendarUnit.Minute => TimeSpan.FromMinutes(Count),
-            CalendarUnit.Quarter => QuarterLength * Count,
-            CalendarUnit.Hour => TimeSpan.FromHours(Count),
-            _ => throw new NotImplementedException($"Stepping by unit {Unit} is not implemented yet.")
-        };
+        var step = FixedLength ?? throw new NotImplementedException($"Stepping by unit {Unit} is not implemented yet.");
 
         if (step <= TimeSpan.Zero)
         {

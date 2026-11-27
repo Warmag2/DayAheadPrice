@@ -15,6 +15,7 @@ public sealed class EntsoeDocumentParserTests
 {
     private const string HourStart = "2025-10-27T23:00Z";
     private const string HourEnd = "2025-10-28T00:00Z";
+    private const string NewerNamespace = "urn:iec62325.351:tc57wg16:451-3:publicationdocument:7:4";
     private static readonly DateTime HourStartUtc = Dst.Utc(2025, 10, 27, 23);
 
     [Test]
@@ -189,13 +190,44 @@ public sealed class EntsoeDocumentParserTests
         act.Should().Throw<InvalidDataException>().WithMessage("*Invalid security token.*");
     }
 
+    [Test]
+    public void Parse_DocumentInAnotherSchemaVersion_IsParsedAsTheExpectedOne()
+    {
+        // Arrange
+        var xml = DocumentIn(NewerNamespace, Series("EUR", Period(HourStart, HourEnd, (1, "100"))));
+
+        // Act
+        var prices = Parse(xml).Prices;
+
+        // Assert
+        prices.Keys.Should().Equal(Quarters(HourStartUtc, 4));
+        prices.Values.Should().AllBeEquivalentTo(10m);
+    }
+
+    [Test]
+    public void Parse_DocumentInAnotherSchemaVersionYieldingNoPrices_ThrowsNamingBothNamespaces()
+    {
+        // Arrange
+        var xml = DocumentIn(NewerNamespace, "<RenamedTimeSeries />");
+
+        // Act
+        var act = () => Parse(xml);
+
+        // Assert
+        act.Should().Throw<InvalidDataException>()
+            .WithMessage($"*{NewerNamespace}*{Publication_MarketDocument.XmlNamespace}*");
+    }
+
     private static PriceList Parse(string xml) => EntsoeDocumentParser.Parse(xml, NullLogger.Instance);
 
     private static string Acknowledgement(string code, string text) =>
         $"""<?xml version="1.0" encoding="UTF-8"?><Acknowledgement_MarketDocument xmlns="urn:iec62325.351:tc57wg16:451-1:acknowledgementdocument:7:0"><Reason><code>{code}</code><text>{text}</text></Reason></Acknowledgement_MarketDocument>""";
 
     private static string Document(params string[] timeSeries) =>
-        $"""<?xml version="1.0" encoding="UTF-8"?><Publication_MarketDocument xmlns="urn:iec62325.351:tc57wg16:451-3:publicationdocument:7:3">{string.Concat(timeSeries)}</Publication_MarketDocument>""";
+        DocumentIn(Publication_MarketDocument.XmlNamespace, timeSeries);
+
+    private static string DocumentIn(string xmlNamespace, params string[] timeSeries) =>
+        $"""<?xml version="1.0" encoding="UTF-8"?><Publication_MarketDocument xmlns="{xmlNamespace}">{string.Concat(timeSeries)}</Publication_MarketDocument>""";
 
     private static string Series(string currency, params string[] periods) =>
         $"<TimeSeries><currency_Unit.name>{currency}</currency_Unit.name>{string.Concat(periods)}</TimeSeries>";

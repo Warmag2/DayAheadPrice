@@ -110,22 +110,25 @@ internal class PriceIngestionService
             return;
         }
 
-        var bounds = await _repository.GetBoundsAsync(_endpointOptions.Domain, cancellationToken);
-
-        // Stored data still covers enough of the future; nothing new is likely to be published yet.
-        if (bounds != null && bounds.Value.MaxUtc > UtcNow.AddHours(LivePriceState.LookaheadHours))
-        {
-            return;
-        }
-
         try
         {
+            var bounds = await _repository.GetBoundsAsync(_endpointOptions.Domain, cancellationToken);
+
+            // Stored data still covers enough of the future; nothing new is likely to be published yet.
+            if (bounds != null && bounds.Value.MaxUtc > UtcNow.AddHours(LivePriceState.LookaheadHours))
+            {
+                return;
+            }
+
             _logger.LogInformation("Stored prices are stale. Fetching new data from the API.");
 
-            // Fetch forward from the last stored slot (not a fixed window) so a long idle period cannot leave a
-            // hole between the old data and the freshly fetched block.
+            // Fetch forward from the last stored slot (not a fixed window) so a short idle period cannot leave a hole
+            // between the old data and the freshly fetched block. After a long outage only the last day is fetched
+            // here, keeping the request small; the older hole is history, filled in month-sized chunks by
+            // FillGapsAsync when a view reads it.
             var nowUtc = UtcNow;
-            var startUtc = bounds != null ? bounds.Value.MaxUtc : nowUtc.AddDays(-1);
+            var recentUtc = nowUtc.AddDays(-1);
+            var startUtc = bounds != null && bounds.Value.MaxUtc > recentUtc ? bounds.Value.MaxUtc : recentUtc;
 
             var priceList = await FetchAsync(startUtc, nowUtc.AddDays(1), cancellationToken);
 
@@ -188,11 +191,12 @@ internal class PriceIngestionService
     /// <remarks>
     /// Only ranges wholly in the past and no earlier than <see cref="Market.HistoryStartUtc"/> are fetched here; near-future
     /// and current data is the freshness path's responsibility. Each range is split at UTC month boundaries, so a
-    /// single request never asks the API for more than a month, and overlapping ranges from different callers
-    /// (different anchors or zoom levels) produce the same chunks and are recognised as already attempted. Every chunk
-    /// is reserved before it is requested, so concurrent callers (e.g. several users panning far back at once) never
-    /// issue the same request twice; a reserved or already-attempted chunk is skipped until the retry cooldown
-    /// elapses. Settled slots the API has no price for are stored as unavailable, so they are never requested again.
+    /// single request never asks the API for more than a month. Every chunk is reserved before it is requested, so
+    /// concurrent callers (e.g. several users panning far back at once) never issue the same request twice; a chunk
+    /// lying wholly inside one already reserved or attempted is skipped until the retry cooldown elapses. A chunk that
+    /// only overlaps an earlier one (a gap starting on a different day) is fetched again, which is harmless since
+    /// storing is idempotent. Settled slots the API has no price for are stored as unavailable, so they are never
+    /// requested again.
     /// </remarks>
     /// <param name="gapsUtc">The missing ranges, each an inclusive start / exclusive end in UTC.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
@@ -352,7 +356,9 @@ internal class PriceIngestionService
     /// <remarks>
     /// The API answers in whole hours (and in practice whole days), so a fetch often returns slots that are already
     /// stored. The stored range is read once and unchanged slots are left alone; the rest are written together, in
-    /// one transaction.
+    /// one transaction. The upsert still looks each written slot up again (one query per slot, about 3,000 for a
+    /// backfilled month); a plain insert would skip that, but would fail on losing a race with a concurrent write of the
+    /// same slots, which the upsert retries.
     /// </remarks>
     /// <param name="slots">The slots, keyed by UTC start.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
@@ -427,12 +433,7 @@ internal class PriceIngestionService
         // The API takes whole hours. Round the end up rather than down so the request always covers the range
         // asked for; unrequested quarters must never be stored as unavailable.
         var startUtc = fromUtc.EnsureUtc().Floor();
-        var endUtc = toUtc.EnsureUtc().Floor();
-
-        if (endUtc < toUtc.EnsureUtc())
-        {
-            endUtc = endUtc.AddHours(1);
-        }
+        var endUtc = toUtc.EnsureUtc().Ceiling();
 
         return _source.GetPricesAsync(startUtc, endUtc, cancellationToken);
     }

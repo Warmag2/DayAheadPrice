@@ -1,16 +1,13 @@
 @using Faemiyah.DayAheadPrice.Extensions
-@inherits ComponentBase
 @inject TimeZoneInfo _timeZone
 
 @{
     var price = Price ?? 0m;
     var barHeightPercent = 100 * price / (Max - Min); // May be negative
     var barVisible = price != 0;
-
-    var eventToRun = $"setPriceData(event, '{Price.FormatPrice()}', '{GetTimeString()}')";
 }
 
-<div class="histogrambar" onmouseenter=@(eventToRun) ontouchstart=@(eventToRun)>
+<div class="histogrambar" data-price=@Price.FormatPrice() data-time=@GetTimeString()>
     @if (Price == null)
     {
         <div class="unavailable" style="flex:1" />

@@ -14,11 +14,14 @@ internal static class GridScaleSelector
     /// </summary>
     /// <remarks>
     /// Unavailable (<b>null</b>) prices are ignored. When there is nothing to span (no prices, or all zero), the axis
-    /// is 0..1, so the result can always be divided by.
+    /// is 0..1, so the result can always be divided by. Draw the grid with the returned scale: recomputing it from the
+    /// rounded axis can pick a coarser scale whose lines miss the axis ends.
     /// </remarks>
     /// <param name="prices">The prices shown.</param>
-    /// <returns>The axis top and bottom; <c>Max</c> is always greater than <c>Min</c>.</returns>
-    public static (decimal Max, decimal Min) GetAxis(IEnumerable<decimal?> prices)
+    /// <returns>
+    /// The axis top and bottom, and the grid scale they were rounded to; <c>Max</c> is always greater than <c>Min</c>.
+    /// </returns>
+    public static (decimal Max, decimal Min, decimal GridScale) GetAxis(IEnumerable<decimal?> prices)
     {
         var max = 0m;
         var min = 0m;
@@ -36,7 +39,7 @@ internal static class GridScaleSelector
 
         var gridScale = GetGridScale(Math.Ceiling(max), Math.Floor(min));
 
-        return (Math.Ceiling(max / gridScale) * gridScale, Math.Floor(min / gridScale) * gridScale);
+        return (Math.Ceiling(max / gridScale) * gridScale, Math.Floor(min / gridScale) * gridScale, gridScale);
     }
 
     /// <summary>
@@ -50,33 +53,19 @@ internal static class GridScaleSelector
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(max, min);
 
         var baseHeight = (max - min) / 10m;
-        var baseHeightexponent = Math.Ceiling(Math.Log10((double)baseHeight));
-        var baseHeightNormalized = baseHeight / (decimal)Math.Pow(10, baseHeightexponent - 1);
+        var magnitude = (decimal)Math.Pow(10, Math.Ceiling(Math.Log10((double)baseHeight)) - 1);
 
-        var returnScale = 0;
+        // Normally in (1, 10]; floating-point error in Log10 can push it to exactly 1, which must not yield 0.
+        var normalized = baseHeight / magnitude;
 
-        if (baseHeightNormalized > 1)
+        var step = normalized switch
         {
-            returnScale = 2;
-        }
+            <= 1 => 1,
+            <= 2 => 2,
+            <= 5 => 5,
+            _ => 10
+        };
 
-        if (baseHeightNormalized > 2)
-        {
-            returnScale = 5;
-        }
-
-        if (baseHeightNormalized > 5)
-        {
-            returnScale = 10;
-        }
-
-        if (baseHeightNormalized >= 10) // It may happen that we get exactly 10
-        {
-            returnScale = 10;
-        }
-
-        var normalizedReturnScale = (decimal)(returnScale * Math.Pow(10, baseHeightexponent - 1));
-
-        return normalizedReturnScale;
+        return step * magnitude;
     }
 }

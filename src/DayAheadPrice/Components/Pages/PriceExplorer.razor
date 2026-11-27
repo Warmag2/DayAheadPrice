@@ -35,7 +35,7 @@
     @if (_view != null && _view.HasData)
     {
         <div class="fullwidth pagecontent">
-            <Histogram Max=@_ceilPrice Min=@_floorPrice Prices=@_adjustedPrices Resolution=@_view.Resolution HeaderUnit=@_view.HeaderUnit />
+            <Histogram Max=@_ceilPrice Min=@_floorPrice GridScale=@_gridScale Prices=@_adjustedPrices Resolution=@_view.Resolution HeaderUnit=@_view.HeaderUnit />
         </div>
     }
     else
@@ -67,11 +67,15 @@
     [Parameter]
     public decimal Vat { get; set; }
 
+    // Navigation re-enters OnParametersSetAsync without waiting for the previous render, so a slow render (one filling
+    // a gap from the API) could finish last and overwrite a newer view. Only the latest render may show its result.
+    private int _renderGeneration;
     private DotNetObjectReference<PriceExplorer>? _selfRef;
     private PriceView? _view;
     private SortedList<DateTime, decimal?> _adjustedPrices = [];
     private decimal _ceilPrice;
     private decimal _floorPrice;
+    private decimal _gridScale;
 
     private string _timeString = string.Empty;
     private string _priceString = string.Empty;
@@ -96,7 +100,7 @@
 
         // Re-assert the headers after every view change so they show the first visible bar rather than staying on
         // whatever bar was last hovered (hovering mutates the header DOM directly, out of Blazor's knowledge).
-        await _js.InvokeVoidAsync("setPriceData", null, _priceString, _timeString);
+        await _js.InvokeVoidAsync("setPriceData", _priceString, _timeString);
     }
 
     /// <summary>
@@ -104,7 +108,7 @@
     /// </summary>
     /// <param name="key">The pressed key.</param>
     [JSInvokable]
-    public void HandleKey(string key)
+    public async Task HandleKey(string key)
     {
         switch (key)
         {
@@ -121,7 +125,7 @@
                 ZoomOut();
                 break;
             case "End":
-                GoLive();
+                await GoLiveAsync();
                 break;
         }
     }
@@ -175,12 +179,19 @@
         }
     }
 
-    private void GoLive()
+    private async Task GoLiveAsync()
     {
         if (_view is { IsLive: false })
         {
             Navigate(PriceViewState.Live);
+
+            return;
         }
+
+        // Already live, so the URL would not change: re-render in place, which also picks up newly published prices
+        // in a tab left open since before they were published.
+        await RenderStateAsync(PriceViewState.Live);
+        StateHasChanged();
     }
 
     /// <summary>
@@ -201,7 +212,23 @@
 
     private async Task RenderStateAsync(PriceViewState state)
     {
-        _view = await _priceSeriesService.RenderAsync(state);
+        var generation = ++_renderGeneration;
+
+        // A tab can stay open across a price publication, so every live render re-checks freshness. This is cheap: an
+        // in-memory check, and at most one database query per hour.
+        if (state.IsLive)
+        {
+            await _ingestion.EnsureFreshAsync();
+        }
+
+        var view = await _priceSeriesService.RenderAsync(state);
+
+        if (generation != _renderGeneration)
+        {
+            return;
+        }
+
+        _view = view;
 
         _adjustedPrices = [];
 
@@ -213,7 +240,7 @@
         if (_adjustedPrices.Count > 0)
         {
             // Unavailable bars are drawn full height whatever the scale, so only priced bars shape the axis.
-            (_ceilPrice, _floorPrice) = GetAxis(_adjustedPrices.Values);
+            (_ceilPrice, _floorPrice, _gridScale) = GetAxis(_adjustedPrices.Values);
         }
 
         // Reset the headers so a view change immediately shows where we are, instead of whatever bar happened to be

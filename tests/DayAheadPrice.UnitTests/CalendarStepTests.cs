@@ -127,4 +127,17 @@ public sealed class CalendarStepTests
         // Assert
         act.Should().Throw<InvalidOperationException>();
     }
+
+    [Test]
+    public void Approximate_UnknownUnit_Throws()
+    {
+        // Arrange
+        var step = new CalendarStep((CalendarUnit)int.MaxValue, 1);
+
+        // Act
+        var act = () => step.Approximate;
+
+        // Assert
+        act.Should().Throw<NotImplementedException>();
+    }
 }

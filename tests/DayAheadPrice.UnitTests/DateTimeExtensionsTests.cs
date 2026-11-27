@@ -26,6 +26,34 @@ public sealed class DateTimeExtensionsTests
         floored.Should().Be(Dst.Utc(2025, 10, 27, 10, expectedMinute));
     }
 
+    [TestCase(0, 0, 10)]
+    [TestCase(0, 1, 11)]
+    [TestCase(59, 59, 11)]
+    public void Ceiling_Hour_KeepsABoundaryAndRoundsAnythingElseUp(int minute, int second, int expectedHour)
+    {
+        // Arrange
+        var utc = Dst.Utc(2025, 10, 27, 10, minute).AddSeconds(second);
+
+        // Act
+        var ceiled = utc.Ceiling();
+
+        // Assert
+        ceiled.Should().Be(Dst.Utc(2025, 10, 27, expectedHour));
+    }
+
+    [Test]
+    public void Ceiling_MonthPastDecember_RollsOverToTheNextYear()
+    {
+        // Arrange
+        var utc = Dst.Utc(2025, 12, 15);
+
+        // Act
+        var ceiled = utc.Ceiling(CalendarUnit.Month);
+
+        // Assert
+        ceiled.Should().Be(Dst.Utc(2026, 1, 1));
+    }
+
     // 00:30Z and 01:30Z are both 03:30 on the Helsinki clock on 2025-10-26.
     [TestCase(0, 0)]
     [TestCase(1, 1)]

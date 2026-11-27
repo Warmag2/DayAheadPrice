@@ -3,15 +3,10 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Threading.Tasks;
 using AwesomeAssertions;
-using Faemiyah.DayAheadPrice.Database.Contexts;
 using Faemiyah.DayAheadPrice.Database.Entities;
 using Faemiyah.DayAheadPrice.Database.Repositories;
 using Faemiyah.DayAheadPrice.Extensions;
 using Faemiyah.DayAheadPrice.Logic;
-using Faemiyah.DayAheadPrice.Options;
-using Faemiyah.Repository.Interfaces;
-using Faemiyah.Repository.Options;
-using Faemiyah.Repository.Providers;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
@@ -39,6 +34,16 @@ public static class TestServices
     public static DateTime NowUtc { get; } = Utc(2026, 2, 16, 10, 20);
 
     /// <summary>
+    /// The start of the Helsinki local day 2025-10-26, when the clocks go back: 25 hours, 100 quarters.
+    /// </summary>
+    public static DateTime FallBackDayStartUtc { get; } = Utc(2025, 10, 25, 21);
+
+    /// <summary>
+    /// The (exclusive) end of the Helsinki local day 2025-10-26.
+    /// </summary>
+    public static DateTime FallBackDayEndUtc { get; } = Utc(2025, 10, 26, 22);
+
+    /// <summary>
     /// Build the services. The API address points at a closed local port, so a test can never reach ENTSO-E. The
     /// clock is a <see cref="FakeTimeProvider"/> at <see cref="NowUtc"/>; resolve it to move time.
     /// </summary>
@@ -52,10 +57,12 @@ public static class TestServices
             ["ConnectionStrings:Database"] = PostgreSqlFixture.BaseConnectionString,
             ["SqlOptions:DefaultDbName"] = "dayaheadprice_" + Guid.NewGuid().ToString("N"),
             ["EndpointOptions:ApiAddress"] = "http://127.0.0.1:9/",
+            ["EndpointOptions:ApiKey"] = "test",
             ["EndpointOptions:Domain"] = Domain,
             ["EndpointOptions:GenerateTestData"] = generateTestData.ToString(CultureInfo.InvariantCulture),
             ["PricingOptions:Margin"] = "0",
-            ["PricingOptions:Vat"] = "0"
+            ["PricingOptions:Vat"] = "0",
+            ["DisplayOptions:TimeZone"] = Helsinki.Id
         };
 
         foreach (var (key, value) in settings ?? new Dictionary<string, string?>())
@@ -72,19 +79,9 @@ public static class TestServices
         return new ServiceCollection()
             .AddLogging()
             .AddSingleton<IConfiguration>(configuration)
-            .Configure<EndpointOptions>(configuration.GetSection("EndpointOptions"))
-            .Configure<PricingOptions>(configuration.GetSection("PricingOptions"))
-            .Configure<SqlOptions>(configuration.GetSection("SqlOptions"))
-            .AddSingleton(Helsinki)
+            .AddPriceServices(configuration)
             .AddSingleton(clock)
             .AddSingleton<TimeProvider>(clock)
-            .AddSingleton<IConnectionStringAccessor, PgSqlConnectionStringAccessor>()
-            .AddSingleton<IDatabaseContextProvider<PriceDbContext>, PriceDbContextProvider>()
-            .AddSingleton<PricePointRepository>()
-            .AddSingleton<LivePriceState>()
-            .AddPriceSource()
-            .AddSingleton<PriceIngestionService>()
-            .AddSingleton<PriceSeriesService>()
             .BuildServiceProvider();
     }
 

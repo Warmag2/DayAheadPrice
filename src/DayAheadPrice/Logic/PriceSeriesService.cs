@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -28,6 +29,9 @@ internal class PriceSeriesService
     // query, and the summary endpoint is anonymous, so the walk is bounded even when recent days are unavailable.
     private const int MaxDaySummaryCandidates = 7;
 
+    // Times of day in the summary (peak slot, alert hour), on the display zone's clock.
+    private const string TimeOfDayFormat = "HH\\:mm";
+
     // How far past now an anchor may lie. Day-ahead prices never reach further ahead than this, so a later anchor
     // shows the same (latest) window.
     private static readonly TimeSpan MaxAnchorLead = TimeSpan.FromDays(2);
@@ -43,7 +47,10 @@ internal class PriceSeriesService
     // Raw (pre-margin/VAT) time-weighted averages for fully-covered, wholly-past bars, keyed by domain + resolution
     // + UTC bar start. Such periods are immutable, so re-reads of coarse windows avoid rescanning thousands of raw
     // rows. Cleared implicitly only by process restart.
-    private readonly System.Collections.Concurrent.ConcurrentDictionary<AggregateKey, decimal?> _aggregateCache = new();
+    private readonly ConcurrentDictionary<AggregateKey, decimal?> _aggregateCache = new();
+
+    // The last day summary and the data version it was built from; see GetLatestDaySummaryAsync.
+    private CachedSummary? _summaryCache;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PriceSeriesService"/> class.
@@ -163,20 +170,44 @@ internal class PriceSeriesService
     /// <remarks>
     /// Fetches and persists newer data first, exactly as a live page render would, so an access that is the first of
     /// the day still returns the freshly published prices. Prices come from ENTSO-e aligned to the market's day, but
-    /// the app works in server-local time; when the two timezones differ, the newest local day holds only a thin
+    /// the app works in the configured display time zone (<see cref="DisplayOptions.TimeZone"/>); when the two differ,
+    /// the newest local day holds only a thin
     /// sliver of data (an hour or two spilling past local midnight). To avoid reporting such a sliver, the newest
     /// local day holding at least <see cref="MinimumDaySummaryCoverageHours"/> hours of data is summarised instead,
-    /// looking at most <see cref="MaxDaySummaryCandidates"/> days back.
+    /// looking at most <see cref="MaxDaySummaryCandidates"/> days back. The summary depends only on stored data, so it
+    /// is cached and rebuilt only after a write (a <see cref="LivePriceState.Version"/> change); the endpoint serving it
+    /// is anonymous, and a rebuild costs several queries.
     /// </remarks>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The summary, or <b>null</b> when no recent day has enough stored data.</returns>
     public async Task<PriceDaySummary?> GetLatestDaySummaryAsync(CancellationToken cancellationToken = default)
     {
-        var domain = _endpointOptions.Domain;
-
         // Pull and persist newer data when the stored window no longer reaches far enough ahead, just as the live view does.
         await _ingestion.EnsureFreshAsync(cancellationToken);
 
+        // Read the version before building, so a write during the build leaves the cache stale rather than wrong.
+        var version = _liveState.Version;
+
+        if (_summaryCache is { } cached && cached.Version == version)
+        {
+            return cached.Summary;
+        }
+
+        var summary = await BuildLatestDaySummaryAsync(_endpointOptions.Domain, cancellationToken);
+
+        _summaryCache = new CachedSummary(version, summary);
+
+        return summary;
+    }
+
+    /// <summary>
+    /// Build the summary of the most recent sufficiently-covered day from the database.
+    /// </summary>
+    /// <param name="domain">The price domain.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The summary, or <b>null</b> when no recent day has enough stored data.</returns>
+    private async Task<PriceDaySummary?> BuildLatestDaySummaryAsync(string domain, CancellationToken cancellationToken)
+    {
         var bounds = await _repository.GetBoundsAsync(domain, cancellationToken);
 
         if (bounds == null)
@@ -260,15 +291,15 @@ internal class PriceSeriesService
 
         // The hour with the highest time-weighted average; ties resolve to the earliest hour. Hours are stepped on the
         // local clock, so a repeated hour (clocks going back) is considered twice and a skipped one not at all.
-        var hour = new CalendarStep(CalendarUnit.Hour, 1);
-        var (peakHourStartUtc, peakHour) = PriceResampler.EnumerateBarStarts(dayStartUtc, dayEndUtc, hour, _zone)
-            .Select(start => (Start: start, Bar: PriceResampler.ComputeBar(intervals, start, hour.AddTo(start, _zone))))
-            .Where(h => h.Bar.Value.HasValue)
-            .MaxBy(h => h.Bar.Value);
+        var (peakHourStartUtc, peakHourPrice) = PriceResampler
+            .ResampleIntervals(intervals, dayStartUtc, dayEndUtc, new CalendarStep(CalendarUnit.Hour, 1), _zone)
+            .Where(b => b.Value.HasValue)
+            .Select(b => (StartUtc: b.Key, Price: b.Value!.Value))
+            .MaxBy(b => b.Price);
 
-        if (peakHour.Value!.Value.ApplyMarginAndVat(margin, vat) > _pricingOptions.AlertHourThreshold)
+        if (peakHourPrice.ApplyMarginAndVat(margin, vat) > _pricingOptions.AlertHourThreshold)
         {
-            alerts.Add($"High average price during hour {peakHourStartUtc.ToLocalWall(_zone).ToString("HH\\:mm", CultureInfo.InvariantCulture)}.");
+            alerts.Add($"High average price during hour {peakHourStartUtc.ToLocalWall(_zone).ToString(TimeOfDayFormat, CultureInfo.InvariantCulture)}.");
         }
 
         if (finalPeak > _pricingOptions.AlertMaxThreshold)
@@ -282,7 +313,7 @@ internal class PriceSeriesService
             currency,
             Math.Round(priced.Min(i => i.Price).ApplyMarginAndVat(margin, vat), 2, MidpointRounding.AwayFromZero),
             Math.Round(finalPeak, 2, MidpointRounding.AwayFromZero),
-            TimeOnly.FromDateTime(peakTime.ToLocalWall(_zone)).ToString("HH\\:mm", CultureInfo.InvariantCulture),
+            TimeOnly.FromDateTime(peakTime.ToLocalWall(_zone)).ToString(TimeOfDayFormat, CultureInfo.InvariantCulture),
             Math.Round(finalAverage, 2, MidpointRounding.AwayFromZero),
             margin,
             vat,
@@ -312,8 +343,7 @@ internal class PriceSeriesService
             return EmptyView(level, zoomIndex, true);
         }
 
-        var fromUtc = UtcNow.FloorLocal(CalendarUnit.Hour, _zone).AddHours(-LiveHoursBefore);
-        var toUtc = snapshot.MaxUtc > fromUtc ? snapshot.MaxUtc : fromUtc.AddDays(1);
+        var (fromUtc, toUtc) = LiveWindow(snapshot.MaxUtc);
 
         return new PriceView
         {
@@ -349,8 +379,7 @@ internal class PriceSeriesService
 
         var (minUtc, maxUtc) = bounds.Value;
 
-        var fromUtc = UtcNow.FloorLocal(CalendarUnit.Hour, _zone).AddHours(-LiveHoursBefore);
-        var toUtc = maxUtc > fromUtc ? maxUtc : fromUtc.AddDays(1);
+        var (fromUtc, toUtc) = LiveWindow(maxUtc);
 
         var slots = await _repository.GetRangeAsync(domain, fromUtc, toUtc, cancellationToken);
 
@@ -360,6 +389,19 @@ internal class PriceSeriesService
         _liveState.Set(snapshot, version);
 
         return snapshot;
+    }
+
+    /// <summary>
+    /// The live window: from <see cref="LiveHoursBefore"/> hours before the current hour to the end of stored data,
+    /// or a day ahead when stored data ends earlier.
+    /// </summary>
+    /// <param name="maxUtc">The end of stored data, UTC.</param>
+    /// <returns>The window, UTC.</returns>
+    private (DateTime FromUtc, DateTime ToUtc) LiveWindow(DateTime maxUtc)
+    {
+        var fromUtc = UtcNow.FloorLocal(CalendarUnit.Hour, _zone).AddHours(-LiveHoursBefore);
+
+        return (fromUtc, maxUtc > fromUtc ? maxUtc : fromUtc.AddDays(1));
     }
 
     /// <summary>
@@ -475,4 +517,11 @@ internal class PriceSeriesService
     /// <param name="Count">The resolution count.</param>
     /// <param name="BarStartUtc">The bar start, UTC.</param>
     private readonly record struct AggregateKey(string Domain, CalendarUnit Unit, int Count, DateTime BarStartUtc);
+
+    /// <summary>
+    /// A cached day summary.
+    /// </summary>
+    /// <param name="Version">The <see cref="LivePriceState.Version"/> the summary was built from.</param>
+    /// <param name="Summary">The summary; <b>null</b> when no recent day had enough stored data.</param>
+    private sealed record CachedSummary(long Version, PriceDaySummary? Summary);
 }

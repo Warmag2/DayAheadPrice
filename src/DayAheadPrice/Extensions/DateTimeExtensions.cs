@@ -38,6 +38,34 @@ internal static class DateTimeExtensions
     }
 
     /// <summary>
+    /// Ceils a datetime to the start of the given calendar unit, on its own clock: a value already on a unit boundary
+    /// is returned as is, anything else moves to the start of the next unit. The <see cref="DateTime.Kind"/> is
+    /// preserved.
+    /// </summary>
+    /// <param name="dateTime">The <see cref="DateTime"/> to ceil.</param>
+    /// <param name="unit">The unit to ceil to.</param>
+    /// <returns>The ceiled <see cref="DateTime"/>.</returns>
+    public static DateTime Ceiling(this DateTime dateTime, CalendarUnit unit = CalendarUnit.Hour)
+    {
+        var floored = dateTime.Floor(unit);
+
+        if (floored == dateTime)
+        {
+            return floored;
+        }
+
+        return unit switch
+        {
+            CalendarUnit.Minute => floored.AddMinutes(1),
+            CalendarUnit.Quarter => floored.AddMinutes(15),
+            CalendarUnit.Hour => floored.AddHours(1),
+            CalendarUnit.Day => floored.AddDays(1),
+            CalendarUnit.Month => floored.AddMonths(1),
+            _ => floored.AddYears(1)
+        };
+    }
+
+    /// <summary>
     /// Floors a UTC instant to the start of the local calendar unit containing it.
     /// </summary>
     /// <remarks>

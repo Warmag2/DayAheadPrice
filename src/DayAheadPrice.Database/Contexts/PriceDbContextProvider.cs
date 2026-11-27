@@ -1,11 +1,11 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Faemiyah.Repository.Interfaces;
 using Faemiyah.Repository.Options;
 using Faemiyah.Repository.Providers;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Faemiyah.DayAheadPrice.Database.Contexts;
 

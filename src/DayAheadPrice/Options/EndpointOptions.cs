@@ -33,6 +33,11 @@ internal class EndpointOptions : IValidatableObject
     public string Domain { get; set; } = string.Empty;
 
     /// <summary>
+    /// The human-readable name of the <see cref="Domain"/>'s region, shown in the page title.
+    /// </summary>
+    public string RegionDisplayName { get; set; } = string.Empty;
+
+    /// <summary>
     /// Generate test data instead of making API calls.
     /// </summary>
     public bool GenerateTestData { get; set; }

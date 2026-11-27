@@ -17,9 +17,6 @@ namespace Faemiyah.DayAheadPrice.IntegrationTests;
 [TestFixture]
 public sealed class PriceSeriesServiceTests
 {
-    // The Helsinki local day 2025-10-26, when the clocks go back: 25 hours, 100 quarters.
-    private static readonly DateTime FallBackDayStartUtc = Utc(2025, 10, 25, 21);
-    private static readonly DateTime FallBackDayEndUtc = Utc(2025, 10, 26, 22);
 
     private ServiceProvider _services = null!;
     private PriceSeriesService _service = null!;
@@ -189,6 +186,41 @@ public sealed class PriceSeriesServiceTests
         {
             summary.Should().BeNull();
         }
+    }
+
+    [Test]
+    public async Task GetLatestDaySummaryAsync_AfterAnUnannouncedDatabaseWrite_IsServedFromTheCache()
+    {
+        // Arrange: the summary is built once; then the peak changes behind the app's back.
+        var peakUtc = Utc(2025, 10, 26, 16);
+        await _services.SeedQuartersAsync(FallBackDayStartUtc, FallBackDayEndUtc, t => t == peakUtc ? 8m : 4m);
+        await _service.GetLatestDaySummaryAsync();
+        await _services.GetRequiredService<PricePointRepository>().StoreAsync([Slot(peakUtc, 9m)]);
+
+        // Act
+        var summary = await _service.GetLatestDaySummaryAsync();
+
+        // Assert
+        summary.Should().NotBeNull();
+        summary.Max.Should().Be(8m);
+    }
+
+    [Test]
+    public async Task GetLatestDaySummaryAsync_AfterTheAppWritesData_IsRebuilt()
+    {
+        // Arrange: the summary is built once; then the peak changes through a write the app announces.
+        var peakUtc = Utc(2025, 10, 26, 16);
+        await _services.SeedQuartersAsync(FallBackDayStartUtc, FallBackDayEndUtc, t => t == peakUtc ? 8m : 4m);
+        await _service.GetLatestDaySummaryAsync();
+        await _services.GetRequiredService<PricePointRepository>().StoreAsync([Slot(peakUtc, 9m)]);
+        _services.GetRequiredService<LivePriceState>().Invalidate();
+
+        // Act
+        var summary = await _service.GetLatestDaySummaryAsync();
+
+        // Assert
+        summary.Should().NotBeNull();
+        summary.Max.Should().Be(9m);
     }
 
     [Test]

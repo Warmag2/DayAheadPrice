@@ -15,10 +15,6 @@ namespace Faemiyah.DayAheadPrice.IntegrationTests;
 [TestFixture]
 public sealed class PriceIngestionServiceTests
 {
-    // The Helsinki local day 2025-10-26, when the clocks go back: 25 hours, 100 quarters.
-    private static readonly DateTime FallBackDayStartUtc = Utc(2025, 10, 25, 21);
-    private static readonly DateTime FallBackDayEndUtc = Utc(2025, 10, 26, 22);
-
     private ServiceProvider _services = null!;
     private PriceIngestionService _ingestion = null!;
     private PricePointRepository _repository = null!;
@@ -240,5 +236,22 @@ public sealed class PriceIngestionServiceTests
         var bounds = await _repository.GetBoundsAsync(Domain);
         bounds.Should().NotBeNull();
         bounds.Value.MaxUtc.Should().BeAfter(storedToUtc);
+    }
+
+    [Test]
+    public async Task EnsureFreshAsync_StoredDataEndingLongAgo_FetchesOnlyTheLastDay()
+    {
+        // Arrange
+        var storedToUtc = NowUtc.Floor().AddDays(-60);
+        await _services.SeedQuartersAsync(storedToUtc.AddDays(-1), storedToUtc, _ => 1m);
+
+        // Act
+        await _ingestion.EnsureFreshAsync();
+
+        // Assert: the hole before the last day is left to the history gap fill.
+        (await _repository.GetRangeAsync(Domain, storedToUtc, NowUtc.AddDays(-1).Floor())).Should().BeEmpty();
+        var bounds = await _repository.GetBoundsAsync(Domain);
+        bounds.Should().NotBeNull();
+        bounds.Value.MaxUtc.Should().BeAfter(NowUtc.AddHours(LivePriceState.LookaheadHours));
     }
 }
